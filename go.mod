@@ -9,6 +9,8 @@ require (
 	github.com/labstack/echo/v4 v4.1.16
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v0.9.3
+	github.com/shurcooL/httpfs v0.0.0-20230704072500-f1e31cf0ba5c
+	github.com/shurcooL/vfsgen v0.0.0-20230704071429-0000e147ea92
 	github.com/spf13/cobra v1.0.0
 	k8s.io/apimachinery v0.18.6
 	sigs.k8s.io/yaml v1.2.0
