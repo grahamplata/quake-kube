@@ -1,5 +1,8 @@
 package server
 
+// Quake III Arena Demo End User License Agreement.
+// Source: https://github.com/id-Software/Quake-III-Arena/blob/master/code/win32/mod-sdk-setup/QIIIA%20Game%20Source%20License.doc
+
 const Q3DemoEULA = `LIMITED USE SOFTWARE LICENSE AGREEMENT
 
 This Limited Use Software License Agreement (the "Agreement") is a legal
