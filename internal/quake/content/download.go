@@ -13,8 +13,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/criticalstack/quake-kube/pkg/logger"
 	httputil "github.com/criticalstack/quake-kube/pkg/net/http"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 func CopyAssets(u *url.URL, dir string) error {
@@ -95,7 +97,7 @@ func extractDemoPack(path, dir string) error {
 			return err
 		}
 		if strings.HasSuffix(hdr.Name, ".pk3") {
-			fmt.Printf("Downloaded %s\n", hdr.Name)
+			logger.DefaultLogger.Info("downloaded", zap.String("file", hdr.Name))
 			data, err := ioutil.ReadAll(tr)
 			if err != nil {
 				return err
@@ -139,7 +141,7 @@ func extractPointPacks(path, dir string) error {
 			return err
 		}
 		if strings.HasSuffix(hdr.Name, ".pk3") {
-			fmt.Printf("Downloaded %s\n", hdr.Name)
+			logger.DefaultLogger.Info("downloaded", zap.String("file", hdr.Name))
 			data, err := ioutil.ReadAll(tr)
 			if err != nil {
 				return err

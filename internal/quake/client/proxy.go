@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"time"
 
+	"github.com/criticalstack/quake-kube/pkg/logger"
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 )
 
 var DefaultUpgrader = &websocket.Upgrader{
@@ -48,7 +49,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	}
 	ws, err := upgrader.Upgrade(rw, req, upgradeHeader)
 	if err != nil {
-		log.Printf("wsproxy: couldn't upgrade %v", err)
+		logger.DefaultLogger.Error("wsproxy: couldn't upgrade", zap.Error(err))
 		return
 	}
 	defer ws.Close()
@@ -108,7 +109,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	select {
 	case err = <-errc:
 		if e, ok := err.(*websocket.CloseError); !ok || e.Code == websocket.CloseAbnormalClosure {
-			log.Printf("wsproxy: %v", err)
+			logger.DefaultLogger.Error("wsproxy", zap.Error(err))
 		}
 	case <-ctx.Done():
 		return

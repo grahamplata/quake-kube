@@ -39,3 +39,9 @@ func NewLogger(config Config) (*zap.Logger, error) {
 
 	return logger, nil
 }
+
+var DefaultLogger *zap.Logger
+
+func init() {
+	DefaultLogger = zap.NewNop()
+}

@@ -1,7 +1,6 @@
 package content
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	quakecontent "github.com/criticalstack/quake-kube/internal/quake/content"
+	"github.com/criticalstack/quake-kube/pkg/logger"
+	"go.uber.org/zap"
 )
 
 var opts struct {
@@ -60,7 +61,7 @@ func NewCommand() *cobra.Command {
 				WriteTimeout:   600 * time.Second,
 				MaxHeaderBytes: 1 << 20,
 			}
-			fmt.Printf("Starting server %s\n", opts.Addr)
+			logger.DefaultLogger.Info("starting server", zap.String("addr", opts.Addr))
 			return s.ListenAndServe()
 		},
 	}
