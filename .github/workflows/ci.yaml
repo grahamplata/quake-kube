@@ -47,7 +47,7 @@ jobs:
           cache: true
 
       - name: Build binary
-        run: make build
+        run: make q3
 
   test:
     name: Test
