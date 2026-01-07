@@ -8,11 +8,13 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	quakeclient "github.com/criticalstack/quake-kube/internal/quake/client"
 	"github.com/criticalstack/quake-kube/internal/quake/content"
 	quakeserver "github.com/criticalstack/quake-kube/internal/quake/server"
-	httputil "github.com/criticalstack/quake-kube/internal/util/net/http"
+	"github.com/criticalstack/quake-kube/pkg/logger"
+	httputil "github.com/criticalstack/quake-kube/pkg/net/http"
 	"github.com/criticalstack/quake-kube/public"
 )
 
@@ -40,7 +42,7 @@ func NewCommand() *cobra.Command {
 				return err
 			}
 			if !opts.AcceptEula {
-				fmt.Println(quakeserver.Q3DemoEULA)
+				fmt.Print(quakeserver.Q3DemoEULA)
 				return errors.New("You must agree to the EULA to continue")
 			}
 			if err := httputil.GetUntil(opts.ContentServer, ctx.Done()); err != nil {
@@ -52,15 +54,24 @@ func NewCommand() *cobra.Command {
 				return err
 			}
 
+			l, err := logger.NewLogger(logger.Config{
+				LogLevel:    "info",
+				ServiceName: "q3-server",
+			})
+			if err != nil {
+				return err
+			}
+
 			go func() {
-				s := quakeserver.Server{
-					Dir:           opts.AssetsDir,
-					WatchInterval: opts.WatchInterval,
-					ConfigFile:    opts.ConfigFile,
-					Addr:          opts.ServerAddr,
-				}
+				s := quakeserver.NewServer(
+					quakeserver.WithDir(opts.AssetsDir),
+					quakeserver.WithWatchInterval(opts.WatchInterval),
+					quakeserver.WithConfigFile(opts.ConfigFile),
+					quakeserver.WithAddr(opts.ServerAddr),
+					quakeserver.WithLogger(l),
+				)
 				if err := s.Start(ctx); err != nil {
-					panic(err)
+					l.Fatal("server failed", zap.Error(err))
 				}
 			}()
 
@@ -77,7 +88,7 @@ func NewCommand() *cobra.Command {
 				Handler:    e,
 				ServerAddr: opts.ServerAddr,
 			}
-			fmt.Printf("Starting server %s\n", opts.ClientAddr)
+			l.Info("starting server", zap.String("addr", opts.ClientAddr))
 			return s.ListenAndServe()
 		},
 	}
@@ -88,5 +99,6 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringVar(&opts.ClientAddr, "client-addr", "0.0.0.0:8080", "client address <host>:<port>")
 	cmd.Flags().StringVar(&opts.ServerAddr, "server-addr", "0.0.0.0:27960", "dedicated server <host>:<port>")
 	cmd.Flags().DurationVar(&opts.WatchInterval, "watch-interval", 15*time.Second, "dedicated server <host>:<port>")
+
 	return cmd
 }
