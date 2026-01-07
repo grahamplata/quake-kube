@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	quakeclient "github.com/criticalstack/quake-kube/internal/quake/client"
-	netutil "github.com/criticalstack/quake-kube/internal/util/net"
+	netutil "github.com/criticalstack/quake-kube/pkg/net"
 )
 
 var opts struct {
