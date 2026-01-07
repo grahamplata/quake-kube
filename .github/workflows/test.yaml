@@ -2,24 +2,53 @@ name: Tests
 
 on:
   push:
-    branches: [ master ]
+    branches:
+      - main
   pull_request:
-    branches: [ master ]
+
+# Cancel old runs when a new push is made to the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+          cache: true
+      - name: golangci-lint
+        uses: golangci-lint/golangci-lint-action@v6
+        with:
+          version: latest
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.21', '1.22', '1.23' ]
+
+    steps:
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Install golang
-        uses: actions/setup-go@v2
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
         with:
-          go-version: '^1.13.1' # The Go version to download (if necessary) and use.
-
-      - name: Run tests
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      - name: Verify dependencies
         run: |
-          make test
+          go mod tidy
+          git diff --exit-code
+      - name: Verify generated files
+        run: |
+          make gen
+          git diff --exit-code
+      - run: make test
