@@ -2,7 +2,6 @@ package content
 
 import (
 	"hash/crc32"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,8 +14,11 @@ type File struct {
 }
 
 func getAssets(dir string) (files []*File, err error) {
-	err = walk(dir, func(path string, info os.FileInfo, err error) error {
-		data, err := ioutil.ReadFile(path)
+	err = walk(dir, func(path string, info os.FileInfo, werr error) error {
+		if werr != nil {
+			return werr
+		}
+		data, err := os.ReadFile(path)
 		if err != nil {
 			return err
 		}

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -38,7 +37,7 @@ func CopyAssets(u *url.URL, dir string) error {
 		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(path, data, 0644); err != nil {
+		if err := os.WriteFile(path, data, 0644); err != nil {
 			return err
 		}
 		if strings.HasPrefix(f.Name, "linuxq3ademo") {
@@ -71,7 +70,7 @@ func getManifest(url string) ([]*File, error) {
 var gzipMagicHeader = []byte{'\x1f', '\x8b'}
 
 func extractDemoPack(path, dir string) error {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -83,7 +82,7 @@ func extractDemoPack(path, dir string) error {
 	}
 	defer gr.Close()
 
-	data, err = ioutil.ReadAll(gr)
+	data, err = io.ReadAll(gr)
 	if err != nil {
 		return err
 	}
@@ -98,7 +97,7 @@ func extractDemoPack(path, dir string) error {
 		}
 		if strings.HasSuffix(hdr.Name, ".pk3") {
 			logger.DefaultLogger.Info("downloaded", zap.String("file", hdr.Name))
-			data, err := ioutil.ReadAll(tr)
+			data, err := io.ReadAll(tr)
 			if err != nil {
 				return err
 			}
@@ -106,7 +105,7 @@ func extractDemoPack(path, dir string) error {
 			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(path, data, 0644); err != nil {
+			if err := os.WriteFile(path, data, 0644); err != nil {
 				return err
 			}
 		}
@@ -115,7 +114,7 @@ func extractDemoPack(path, dir string) error {
 }
 
 func extractPointPacks(path, dir string) error {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func extractPointPacks(path, dir string) error {
 	}
 	defer gr.Close()
 
-	data, err = ioutil.ReadAll(gr)
+	data, err = io.ReadAll(gr)
 	if err != nil {
 		return err
 	}
@@ -142,7 +141,7 @@ func extractPointPacks(path, dir string) error {
 		}
 		if strings.HasSuffix(hdr.Name, ".pk3") {
 			logger.DefaultLogger.Info("downloaded", zap.String("file", hdr.Name))
-			data, err := ioutil.ReadAll(tr)
+			data, err := io.ReadAll(tr)
 			if err != nil {
 				return err
 			}
@@ -150,7 +149,7 @@ func extractPointPacks(path, dir string) error {
 			if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 				return err
 			}
-			if err := ioutil.WriteFile(path, data, 0644); err != nil {
+			if err := os.WriteFile(path, data, 0644); err != nil {
 				return err
 			}
 		}

@@ -3,7 +3,6 @@ package client
 import (
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -36,7 +35,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	}
 	defer f.Close()
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}

@@ -73,7 +73,9 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 					}
 				}
 				errc <- err
-				ws.WriteMessage(websocket.CloseMessage, m)
+				if err := ws.WriteMessage(websocket.CloseMessage, m); err != nil {
+					logger.DefaultLogger.Error("wsproxy: error writing close message", zap.Error(err))
+				}
 				return
 			}
 			if bytes.HasPrefix(msg, []byte("\xff\xff\xff\xffport")) {
