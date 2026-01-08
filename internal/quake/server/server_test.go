@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	quakenet "github.com/criticalstack/quake-kube/internal/quake/net"
+	quakenet "github.com/grahamplata/quake-kube/internal/quake/net"
 )
 
 type mockNetClient struct {

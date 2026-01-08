@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/criticalstack/quake-kube/pkg/logger"
-	httputil "github.com/criticalstack/quake-kube/pkg/net/http"
+	"github.com/grahamplata/quake-kube/pkg/logger"
+	"github.com/grahamplata/quake-kube/pkg/net/http"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
@@ -30,7 +30,7 @@ func CopyAssets(u *url.URL, dir string) error {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			continue
 		}
-		data, err := httputil.GetBody(url + fmt.Sprintf("/assets/%d-%s", f.Checksum, f.Name))
+		data, err := http.GetBody(url + fmt.Sprintf("/assets/%d-%s", f.Checksum, f.Name))
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func CopyAssets(u *url.URL, dir string) error {
 }
 
 func getManifest(url string) ([]*File, error) {
-	data, err := httputil.GetBody(url + "/assets/manifest.json")
+	data, err := http.GetBody(url + "/assets/manifest.json")
 	if err != nil {
 		return nil, err
 	}

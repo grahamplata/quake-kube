@@ -1,4 +1,4 @@
-module github.com/criticalstack/quake-kube
+module github.com/grahamplata/quake-kube
 
 go 1.23
 

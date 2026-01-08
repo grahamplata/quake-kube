@@ -1,29 +1,52 @@
-FROM golang:1.13 as builder
+# Build stage for Go application
+FROM golang:1.23.4 AS builder
 
 WORKDIR /workspace
-COPY go.mod go.mod
-COPY go.sum go.sum
+
+# Copy source files first
+COPY go.mod go.sum ./
+COPY cli cli/
+COPY internal internal/
+COPY pkg pkg/
+COPY public public/
+
+# Download dependencies
 ARG GOPROXY
 ARG GOSUMDB
 RUN go mod download
 
-COPY cmd cmd/
-COPY internal internal/
-COPY public public/
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -a -o q3 ./cli
 
-RUN CGO_ENABLED=0 GOOS=linux GO111MODULE=on taskset -c 1 /usr/local/go/bin/go build -a -o q3 ./cmd/q3
+# Build stage for Quake 3 server
+FROM alpine:3.20.3 AS quake-n-bake
 
-FROM alpine:3.12 as quake-n-bake
+# Install build dependencies, clone, build, and cleanup in one layer
+RUN apk add --no-cache git gcc make libc-dev cmake
+RUN git clone --depth 1 https://github.com/ioquake/ioq3 /ioq3
+WORKDIR /ioq3
+RUN mkdir build && cd build && \
+    cmake -DBUILD_CLIENT=0 -DBUILD_SERVER=1 -DGENERATE_TESTS=0 .. && \
+    make && \
+    find . -name "ioq3ded*" -type f -exec cp {} /usr/local/bin/ioq3ded \;
 
-RUN apk add --no-cache git gcc make libc-dev
-RUN git clone https://github.com/ioquake/ioq3
-RUN cd /ioq3 && make BUILD_MISSIONPACK=0 BUILD_BASEGAME=0 BUILD_CLIENT=0 BUILD_SERVER=1 BUILD_GAME_SO=0 BUILD_GAME_QVM=0 BUILD_RENDERER_OPENGL2=0 BUILD_STANDALONE=1
-RUN cp /ioq3/build/release-linux-$(uname -m)/ioq3ded.$(uname -m) /usr/local/bin/ioq3ded
+# Final production stage
 
-FROM alpine:3.12
+FROM alpine:3.20.3 AS production
 
-COPY --from=builder /workspace/q3 /usr/local/bin
-COPY --from=quake-n-bake /usr/local/bin/ioq3ded /usr/local/bin
-COPY --from=quake-n-bake /lib/ld-musl-*.so.1 /lib
+# Create non-root user
+RUN addgroup -g 1000 q3user && \
+    adduser -D -u 1000 -G q3user q3user
+
+# Copy binaries from build stages
+COPY --from=builder /workspace/q3 /usr/local/bin/q3
+COPY --from=quake-n-bake /usr/local/bin/ioq3ded /usr/local/bin/ioq3ded
+COPY --from=quake-n-bake /lib/ld-musl-*.so.1 /lib/
+
+# Set ownership
+RUN chown q3user:q3user /usr/local/bin/q3 /usr/local/bin/ioq3ded
+
+# Switch to non-root user
+USER q3user
 
 ENTRYPOINT ["/usr/local/bin/q3"]

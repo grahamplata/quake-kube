@@ -3,11 +3,10 @@ package main
 import (
 	"github.com/spf13/cobra"
 
-	q3cmd "github.com/criticalstack/quake-kube/cmd/q3/app/cmd"
-	q3content "github.com/criticalstack/quake-kube/cmd/q3/app/content"
-	q3proxy "github.com/criticalstack/quake-kube/cmd/q3/app/proxy"
-	q3server "github.com/criticalstack/quake-kube/cmd/q3/app/server"
-	"github.com/criticalstack/quake-kube/pkg/logger"
+	"github.com/grahamplata/quake-kube/cli/cmd/content"
+	"github.com/grahamplata/quake-kube/cli/cmd/proxy"
+	"github.com/grahamplata/quake-kube/cli/cmd/server"
+	"github.com/grahamplata/quake-kube/pkg/logger"
 )
 
 var global struct {
@@ -20,10 +19,9 @@ func main() {
 		Short: "",
 	}
 	cmd.AddCommand(
-		q3cmd.NewCommand(),
-		q3content.NewCommand(),
-		q3proxy.NewCommand(),
-		q3server.NewCommand(),
+		content.NewCommand(),
+		proxy.NewCommand(),
+		server.NewCommand(),
 	)
 
 	cmd.PersistentFlags().CountVarP(&global.Verbosity, "verbose", "v", "log output verbosity")
@@ -32,14 +30,11 @@ func main() {
 		if global.Verbosity > 0 {
 			lvl = "debug"
 		}
-		l, err := logger.NewLogger(logger.Config{
-			LogLevel:    lvl,
-			ServiceName: "q3",
-		})
+		log, err := logger.NewLogger(logger.Config{LogLevel: lvl, ServiceName: "q3"})
 		if err != nil {
 			return err
 		}
-		logger.DefaultLogger = l
+		logger.DefaultLogger = log
 		return nil
 	}
 

@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/criticalstack/quake-kube/pkg/logger"
 	"github.com/gorilla/websocket"
+	"github.com/grahamplata/quake-kube/pkg/logger"
 	"go.uber.org/zap"
 )
 

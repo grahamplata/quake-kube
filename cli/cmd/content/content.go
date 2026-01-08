@@ -9,8 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	quakecontent "github.com/criticalstack/quake-kube/internal/quake/content"
-	"github.com/criticalstack/quake-kube/pkg/logger"
+	"github.com/grahamplata/quake-kube/internal/quake/content"
+	"github.com/grahamplata/quake-kube/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -43,14 +43,12 @@ func NewCommand() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if err := quakecontent.CopyAssets(u, opts.AssetsDir); err != nil {
+				if err := content.CopyAssets(u, opts.AssetsDir); err != nil {
 					return err
 				}
 			}
 
-			e, err := quakecontent.NewRouter(&quakecontent.Config{
-				AssetsDir: opts.AssetsDir,
-			})
+			e, err := content.NewRouter(&content.Config{AssetsDir: opts.AssetsDir})
 			if err != nil {
 				return err
 			}

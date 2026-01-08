@@ -10,7 +10,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	quakenet "github.com/criticalstack/quake-kube/internal/quake/net"
+	quakenet "github.com/grahamplata/quake-kube/internal/quake/net"
 )
 
 type Config struct {

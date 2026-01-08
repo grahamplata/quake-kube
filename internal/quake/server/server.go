@@ -12,8 +12,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
-	quakenet "github.com/criticalstack/quake-kube/internal/quake/net"
-	"github.com/criticalstack/quake-kube/pkg/exec"
+	quakenet "github.com/grahamplata/quake-kube/internal/quake/net"
+	"github.com/grahamplata/quake-kube/pkg/exec"
 )
 
 // NetClient is an interface for interacting with the Quake server.
@@ -237,7 +237,11 @@ func (s *Server) reload() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.Dir, "baseq3/server.cfg"), data, 0644)
+	output := filepath.Join(s.Dir, "baseq3/server.cfg")
+	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(output, data, 0644)
 }
 
 func (s *Server) watch(ctx context.Context) (<-chan struct{}, error) {

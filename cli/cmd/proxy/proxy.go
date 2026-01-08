@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	quakeclient "github.com/criticalstack/quake-kube/internal/quake/client"
-	netutil "github.com/criticalstack/quake-kube/pkg/net"
+	"github.com/grahamplata/quake-kube/internal/quake/client"
+	"github.com/grahamplata/quake-kube/pkg/net"
 )
 
 var opts struct {
@@ -23,13 +23,13 @@ func NewCommand() *cobra.Command {
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if opts.ClientAddr == "" {
-				hostIPv4, err := netutil.DetectHostIPv4()
+				hostIPv4, err := net.DetectHostIPv4()
 				if err != nil {
 					return err
 				}
 				opts.ClientAddr = fmt.Sprintf("%s:8080", hostIPv4)
 			}
-			p, err := quakeclient.NewProxy(opts.ServerAddr)
+			p, err := client.NewProxy(opts.ServerAddr)
 			if err != nil {
 				return err
 			}

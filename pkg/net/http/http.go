@@ -13,7 +13,13 @@ import (
 func GetBody(url string) ([]byte, error) {
 	client := http.Client{Timeout: 5 * time.Minute}
 
-	resp, err := client.Get(url)
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create request for %q: %v", url, err)
+	}
+	req.Header.Set("User-Agent", "quake-kube/1.0")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get url %q: %v", url, err)
 	}
