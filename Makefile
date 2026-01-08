@@ -19,6 +19,11 @@ test:
 build:
 	@docker build . --no-cache --force-rm --build-arg GOPROXY --build-arg GOSUMDB -t $(IMAGE)
 
+.PHONY: clean
+clean:
+	@rm -rf $(BIN_DIR)
+	@rm -rf $(PWD)/assets/*
+
 .PHONY: buildx
 buildx:
 	@docker buildx build . --platform=linux/amd64,linux/arm64 --progress=auto -t $(IMAGE) --push
