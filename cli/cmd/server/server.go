@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,22 +13,24 @@ import (
 	"github.com/grahamplata/quake-kube/internal/quake/content"
 	"github.com/grahamplata/quake-kube/internal/quake/server"
 	"github.com/grahamplata/quake-kube/pkg/logger"
-	"github.com/grahamplata/quake-kube/pkg/net/http"
 	"github.com/grahamplata/quake-kube/public"
 )
 
-var opts struct {
-	ClientAddr       string
-	ServerAddr       string
-	ContentServer    string
-	AcceptEula       bool
-	AssetsDir        string
-	ConfigFile       string
-	WatchInterval    time.Duration
-	NoAssetsDownload bool
-}
+var (
+	// Quake 3 Arena demo
+	// https://lvlworld.com/misc-files/Q3A-Demo-Linux.zip
+	demoURL = "https://lvlworld.com/misc-files/Q3A-Demo-Linux.zip"
+
+	// PAK file only upgrade - for unofficial game engines
+	// https://lvlworld.com/misc-files/Point-Release-1.32-PAK.zip
+	pakURL = "https://lvlworld.com/misc-files/Point-Release-1.32-PAK.zip"
+)
 
 func NewCommand() *cobra.Command {
+	var clientAddr, serverAddr, contentServer, assetsDir, configFile string
+	var acceptEula, noAssetsDownload bool
+	var watchInterval time.Duration
+
 	cmd := &cobra.Command{
 		Use:          "server",
 		Short:        "q3 server",
@@ -38,29 +39,10 @@ func NewCommand() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			csurl, err := url.Parse(opts.ContentServer)
-			if err != nil {
-				return err
-			}
-			if !opts.AcceptEula {
+			// Must accept Eula to proceed
+			if !acceptEula {
 				fmt.Print(server.Q3DemoEULA)
 				return errors.New("You must agree to the EULA to continue")
-			}
-
-			// Download free ioquake3 point release files (pak1-pak8)
-			// These are freely available and don't require purchasing Quake 3
-			if !opts.NoAssetsDownload {
-				// Optionally try to download additional assets from content server
-				// This is now optional since the free point release files should be sufficient
-				if opts.ContentServer != "" && opts.ContentServer != "http://content.quakejs.com" {
-					if err := http.GetUntil(opts.ContentServer, ctx.Done()); err == nil {
-						// Only attempt if server is reachable
-						if err := content.CopyAssets(csurl, opts.AssetsDir); err != nil {
-							// Log but don't fail - we have the free files already
-							logger.DefaultLogger.Warn("failed to copy assets from content server", zap.Error(err))
-						}
-					}
-				}
 			}
 
 			logger, err := logger.NewLogger(logger.Config{
@@ -71,12 +53,20 @@ func NewCommand() *cobra.Command {
 				return err
 			}
 
+			// Download free ioquake3 point release files (pak1-pak8)
+			// These are freely available and don't require purchasing Quake 3
+			if !noAssetsDownload {
+				if err := content.DownloadAssetsFromURLs(demoURL, pakURL, assetsDir); err != nil {
+					logger.Warn("failed to download assets", zap.Error(err))
+				}
+			}
+
 			go func() {
 				s := server.NewServer(
-					server.WithDir(opts.AssetsDir),
-					server.WithWatchInterval(opts.WatchInterval),
-					server.WithConfigFile(opts.ConfigFile),
-					server.WithAddr(opts.ServerAddr),
+					server.WithDir(assetsDir),
+					server.WithWatchInterval(watchInterval),
+					server.WithConfigFile(configFile),
+					server.WithAddr(serverAddr),
 					server.WithLogger(logger),
 				)
 				if err := s.Start(ctx); err != nil {
@@ -85,33 +75,29 @@ func NewCommand() *cobra.Command {
 			}()
 
 			e, err := client.NewRouter(&client.Config{
-				ContentServerURL: opts.ContentServer,
-				ServerAddr:       opts.ServerAddr,
+				ContentServerURL: contentServer,
+				ServerAddr:       serverAddr,
 				Files:            public.Files,
 			})
 			if err != nil {
 				logger.Fatal("failed to create router", zap.Error(err))
 			}
 
-			s := &client.Server{
-				Addr:       opts.ClientAddr,
-				Handler:    e,
-				ServerAddr: opts.ServerAddr,
-			}
+			s := &client.Server{Addr: clientAddr, Handler: e, ServerAddr: serverAddr, Logger: logger}
 
-			logger.Info("starting server", zap.String("addr", opts.ClientAddr))
+			logger.Info("starting server", zap.String("addr", clientAddr))
 			return s.ListenAndServe()
 		},
 	}
 
-	cmd.Flags().StringVarP(&opts.ConfigFile, "config", "c", "", "server configuration file")
-	cmd.Flags().StringVar(&opts.ContentServer, "content-server", "http://content.quakejs.com", "content server url")
-	cmd.Flags().BoolVar(&opts.AcceptEula, "agree-eula", false, "agree to the Quake 3 demo EULA")
-	cmd.Flags().StringVar(&opts.AssetsDir, "assets-dir", "assets", "location for game files")
-	cmd.Flags().StringVar(&opts.ClientAddr, "client-addr", "0.0.0.0:8080", "client address <host>:<port>")
-	cmd.Flags().StringVar(&opts.ServerAddr, "server-addr", "0.0.0.0:27960", "dedicated server <host>:<port>")
-	cmd.Flags().DurationVar(&opts.WatchInterval, "watch-interval", 15*time.Second, "dedicated server <host>:<port>")
-	cmd.Flags().BoolVar(&opts.NoAssetsDownload, "no-assets-download", false, "skip downloading assets from content server")
+	cmd.Flags().StringVarP(&configFile, "config", "c", "", "server configuration file")
+	cmd.Flags().StringVar(&contentServer, "content-server", "http://content.quakejs.com", "content server url")
+	cmd.Flags().BoolVar(&acceptEula, "agree-eula", false, "agree to the Quake 3 demo EULA")
+	cmd.Flags().StringVar(&assetsDir, "assets-dir", "assets", "location for game files")
+	cmd.Flags().StringVar(&clientAddr, "client-addr", "0.0.0.0:8080", "client address <host>:<port>")
+	cmd.Flags().StringVar(&serverAddr, "server-addr", "0.0.0.0:27960", "dedicated server <host>:<port>")
+	cmd.Flags().DurationVar(&watchInterval, "watch-interval", 15*time.Second, "dedicated server <host>:<port>")
+	cmd.Flags().BoolVar(&noAssetsDownload, "no-assets-download", false, "skip downloading assets from content server")
 
 	return cmd
 }

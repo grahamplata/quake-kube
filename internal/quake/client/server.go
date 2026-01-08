@@ -6,12 +6,14 @@ import (
 	"time"
 
 	"github.com/cockroachdb/cmux"
+	"go.uber.org/zap"
 )
 
 type Server struct {
 	Addr       string
 	Handler    http.Handler
 	ServerAddr string
+	Logger     *zap.Logger
 }
 
 func (s *Server) Serve(l net.Listener) error {
@@ -41,7 +43,7 @@ func (s *Server) Serve(l net.Listener) error {
 		// handle case where host is 0.0.0.0
 		proxyTarget = net.JoinHostPort("127.0.0.1", port)
 	}
-	wsproxy, err := NewProxy(proxyTarget)
+	wsproxy, err := NewProxy(proxyTarget, s.Logger)
 	if err != nil {
 		return err
 	}

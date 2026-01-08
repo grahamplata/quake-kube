@@ -81,9 +81,6 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		return c.JSON(http.StatusOK, m)
 	})
 
-	// static files
-	e.GET("/*", echo.WrapHandler(http.FileServer(cfg.Files)))
-
 	// Quake3 assets requests must be proxied to the content server. The host
 	// header is manipulated to ensure that services like CloudFlare will not
 	// reject requests based upon incorrect host header.
@@ -98,6 +95,11 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		}),
 		Transport: &HostHeaderTransport{RoundTripper: http.DefaultTransport, Host: csurl.Host},
 	}))
+	// Ensure that all requests under /assets (including manifest.json) are handled by the group
+	g.GET("/*", func(c echo.Context) error { return nil })
+
+	// static files
+	e.GET("/*", echo.WrapHandler(http.FileServer(cfg.Files)))
 	return e, nil
 }
 

@@ -14,57 +14,61 @@ import (
 	"go.uber.org/zap"
 )
 
-var opts struct {
-	Addr           string
-	AssetsDir      string
-	SeedContentURL string
-}
-
 func NewCommand() *cobra.Command {
+	var addr, assetsDir, seedContentURL string
 	cmd := &cobra.Command{
 		Use:           "content",
 		Short:         "q3 content server",
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			if !filepath.IsAbs(opts.AssetsDir) {
-				opts.AssetsDir, err = filepath.Abs(opts.AssetsDir)
+			if !filepath.IsAbs(assetsDir) {
+				assetsDir, err = filepath.Abs(assetsDir)
 				if err != nil {
 					return err
 				}
 			}
 
-			if err := os.MkdirAll(opts.AssetsDir, 0755); err != nil {
+			if err := os.MkdirAll(assetsDir, 0755); err != nil {
 				return err
 			}
 
-			if opts.SeedContentURL != "" {
-				u, err := url.Parse(opts.SeedContentURL)
+			if seedContentURL != "" {
+				u, err := url.Parse(seedContentURL)
 				if err != nil {
 					return err
 				}
-				if err := content.CopyAssets(u, opts.AssetsDir); err != nil {
+				if err := content.CopyAssets(u, assetsDir); err != nil {
 					return err
 				}
 			}
 
-			e, err := content.NewRouter(&content.Config{AssetsDir: opts.AssetsDir})
+			e, err := content.NewRouter(&content.Config{AssetsDir: assetsDir})
 			if err != nil {
 				return err
 			}
 			s := &http.Server{
-				Addr:           opts.Addr,
+				Addr:           addr,
 				Handler:        e,
 				ReadTimeout:    600 * time.Second,
 				WriteTimeout:   600 * time.Second,
 				MaxHeaderBytes: 1 << 20,
 			}
-			logger.DefaultLogger.Info("starting server", zap.String("addr", opts.Addr))
+			l, err := logger.NewLogger(logger.Config{
+				LogLevel:    "info",
+				ServiceName: "q3-content",
+			})
+			if err != nil {
+				return err
+			}
+
+			l.Info("starting server", zap.String("addr", addr))
 			return s.ListenAndServe()
 		},
 	}
-	cmd.Flags().StringVarP(&opts.Addr, "addr", "a", ":9090", "address <host>:<port>")
-	cmd.Flags().StringVarP(&opts.AssetsDir, "assets-dir", "d", "assets", "assets directory")
-	cmd.Flags().StringVar(&opts.SeedContentURL, "seed-content-url", "", "seed content from another content server")
+	cmd.Flags().StringVarP(&addr, "addr", "a", ":9090", "address <host>:<port>")
+	cmd.Flags().StringVarP(&assetsDir, "assets-dir", "d", "assets", "assets directory")
+	cmd.Flags().StringVar(&seedContentURL, "seed-content-url", "", "seed content from another content server")
+
 	return cmd
 }

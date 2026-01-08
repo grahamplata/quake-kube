@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/grahamplata/quake-kube/pkg/logger"
 	"go.uber.org/zap"
 )
 
@@ -23,16 +22,17 @@ var DefaultUpgrader = &websocket.Upgrader{
 
 type WebsocketUDPProxy struct {
 	Upgrader *websocket.Upgrader
+	logger   *zap.Logger
 
 	addr net.Addr
 }
 
-func NewProxy(addr string) (*WebsocketUDPProxy, error) {
+func NewProxy(addr string, logger *zap.Logger) (*WebsocketUDPProxy, error) {
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err
 	}
-	return &WebsocketUDPProxy{addr: raddr}, nil
+	return &WebsocketUDPProxy{addr: raddr, logger: logger}, nil
 }
 
 func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -49,7 +49,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	}
 	ws, err := upgrader.Upgrade(rw, req, upgradeHeader)
 	if err != nil {
-		logger.DefaultLogger.Error("wsproxy: couldn't upgrade", zap.Error(err))
+		w.logger.Error("wsproxy: couldn't upgrade", zap.Error(err))
 		return
 	}
 	defer ws.Close()
@@ -74,7 +74,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 				}
 				errc <- err
 				if err := ws.WriteMessage(websocket.CloseMessage, m); err != nil {
-					logger.DefaultLogger.Error("wsproxy: error writing close message", zap.Error(err))
+					w.logger.Error("wsproxy: error writing close message", zap.Error(err))
 				}
 				return
 			}
@@ -111,7 +111,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	select {
 	case err = <-errc:
 		if e, ok := err.(*websocket.CloseError); !ok || e.Code == websocket.CloseAbnormalClosure {
-			logger.DefaultLogger.Error("wsproxy", zap.Error(err))
+			w.logger.Error("wsproxy", zap.Error(err))
 		}
 	case <-ctx.Done():
 		return
