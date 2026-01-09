@@ -38,6 +38,25 @@ kubectl apply -f example.yaml
 
 Finally, navigate to `http://localhost:30001` in the browser.
 
+### Using Helm
+
+Add the Helm repository:
+
+```shell
+helm repo add quake-kube https://grahamplata.github.io/quake-kube
+helm repo update
+```
+
+Install the chart:
+
+```shell
+helm install quake-kube quake-kube/quake-kube --set quake.agreeEula=true
+```
+
+Access the game at `http://<NODE_IP>:30001`.
+
+For customization options, see [helm/quake-kube/values.yaml](helm/quake-kube/values.yaml).
+
 ## How it works
 
 QuakeKube makes use of [ioquake](https://www.ioquake3.org) for the Quake 3 dedicated server, and [QuakeJS](https://github.com/inolen/quakejs), a port of ioquake to javascript using [Emscripten](http://github.com/kripken/emscripten), to provide an in-browser game client.

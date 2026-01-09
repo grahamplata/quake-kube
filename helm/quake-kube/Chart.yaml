@@ -1,0 +1,17 @@
+apiVersion: v2
+name: quake-kube
+description: A Helm chart for QuakeKube - Quake 3 on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "1.1.1"
+home: https://github.com/grahamplata/quake-kube
+sources:
+  - https://github.com/grahamplata/quake-kube
+maintainers:
+  - name: Graham Plata
+    email: graham@grahamplata.com
+keywords:
+  - quake
+  - game
+  - quake3
+  - kubernetes

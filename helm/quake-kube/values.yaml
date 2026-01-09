@@ -1,0 +1,150 @@
+# Default values for quake-kube.
+
+replicaCount: 1
+
+image:
+  repository: docker.io/grahamplata/quake
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# QuakeKube-specific configuration
+quake:
+  # EULA must be explicitly agreed to - defaults to false for safety
+  # The Quake 3 demo EULA must be accepted to run the server
+  agreeEula: false
+
+  # Content server URL (localhost to target the sidecar content server container)
+  contentServer: "http://127.0.0.1:9090"
+
+  # Shared assets directory path
+  assetsDir: "/assets"
+
+  # Game server configuration (generates ConfigMap)
+  serverConfig:
+    fragLimit: 25
+    timeLimit: "15m"
+    bot:
+      minPlayers: 3
+    game:
+      motd: "Welcome to QuakeKube"
+      type: FreeForAll
+      forceRespawn: false
+      inactivity: "10m"
+      quadFactor: 3
+      weaponRespawn: 3
+      # password: ""  # Game join password (optional)
+    server:
+      hostname: "quakekube"
+      maxClients: 12
+      password: "changeme" # RCON password
+    maps:
+      - name: q3dm7
+        type: FreeForAll
+      - name: q3dm17
+        type: FreeForAll
+    # commands: []  # Additional raw server commands
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+# Multi-port service configuration
+service:
+  type: NodePort
+  ports:
+    http:
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+      nodePort: 30001
+    game:
+      port: 27960
+      targetPort: 27960
+      protocol: UDP
+      nodePort: 30003
+    content:
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+      nodePort: 30002
+
+# Ingress for HTTP client only (does not expose UDP game port)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# Gateway API HTTPRoute for HTTP client only (does not expose UDP game port)
+httpRoute:
+  enabled: false
+  annotations: {}
+  parentRefs:
+    - name: gateway
+      sectionName: http
+  hostnames:
+    - chart-example.local
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+# Container resources (separate for each container)
+resources:
+  server: {}
+  contentServer: {}
+
+# Probes for server container
+readinessProbe:
+  tcpSocket:
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 5
+
+livenessProbe:
+  tcpSocket:
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+# Persistence for assets (custom maps, etc.)
+# When disabled (default), assets are stored in emptyDir and lost on pod restart
+persistence:
+  enabled: false
+  storageClass: ""
+  size: 1Gi
+  accessModes:
+    - ReadWriteOnce
+
+# Prometheus monitoring
+monitoring:
+  enabled: true
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8080"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

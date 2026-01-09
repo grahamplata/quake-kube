@@ -1,0 +1,76 @@
+QuakeKube has been deployed!
+
+{{- if not .Values.quake.agreeEula }}
+
+WARNING: EULA has not been accepted!
+The server will fail to start. Set quake.agreeEula=true to accept the Quake 3 demo EULA:
+
+  helm upgrade {{ .Release.Name }} {{ .Chart.Name }} --set quake.agreeEula=true
+
+{{- end }}
+
+To access your QuakeKube server:
+
+{{- if contains "NodePort" .Values.service.type }}
+
+  Game Client (Browser):
+    export NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[0].address}')
+    echo "http://$NODE_IP:{{ .Values.service.ports.http.nodePort }}"
+
+  Game Server (UDP - for native clients):
+    echo "$NODE_IP:{{ .Values.service.ports.game.nodePort }}"
+  {{- if or (hasPrefix "127.0.0.1" (urlParse .Values.quake.contentServer).host) (hasPrefix "localhost" (urlParse .Values.quake.contentServer).host) }}
+
+  Content Server (for map uploads):
+    echo "http://$NODE_IP:{{ .Values.service.ports.content.nodePort }}"
+  {{- end }}
+
+{{- else if contains "LoadBalancer" .Values.service.type }}
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+
+  Watch for the external IP:
+    kubectl get svc {{ include "quake-kube.fullname" . }} -n {{ .Release.Namespace }} -w
+
+  Once available:
+    export SERVICE_IP=$(kubectl get svc {{ include "quake-kube.fullname" . }} -n {{ .Release.Namespace }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+
+  Game Client (Browser):
+    echo "http://$SERVICE_IP:{{ .Values.service.ports.http.port }}"
+
+  Game Server (UDP - for native clients):
+    echo "$SERVICE_IP:{{ .Values.service.ports.game.port }}"
+  {{- if or (hasPrefix "127.0.0.1" (urlParse .Values.quake.contentServer).host) (hasPrefix "localhost" (urlParse .Values.quake.contentServer).host) }}
+
+  Content Server (for map uploads):
+    echo "http://$SERVICE_IP:{{ .Values.service.ports.content.port }}"
+  {{- end }}
+
+{{- else if contains "ClusterIP" .Values.service.type }}
+
+  Port forward to access locally:
+    kubectl port-forward svc/{{ include "quake-kube.fullname" . }} 8080:{{ .Values.service.ports.http.port }} -n {{ .Release.Namespace }}
+
+  Then open: http://localhost:8080
+
+  NOTE: ClusterIP does not expose the UDP game port (27960) externally.
+  For external game access, use LoadBalancer or NodePort:
+    helm upgrade {{ .Release.Name }} {{ .Chart.Name }} --set service.type=LoadBalancer
+
+{{- end }}
+
+Server Configuration:
+  - Hostname: {{ .Values.quake.serverConfig.server.hostname | default "quakekube" }}
+  - Max Clients: {{ .Values.quake.serverConfig.server.maxClients | default 12 }}
+  - Maps: {{ len .Values.quake.serverConfig.maps }} configured
+
+{{- if .Values.monitoring.enabled }}
+
+Prometheus Monitoring:
+  Metrics are exposed on port {{ .Values.service.ports.http.port }} with annotations:
+{{- range $key, $value := .Values.monitoring.annotations }}
+    {{ $key }}: {{ $value }}
+{{- end }}
+{{- end }}
+
+Documentation: https://github.com/grahamplata/quake-kube
