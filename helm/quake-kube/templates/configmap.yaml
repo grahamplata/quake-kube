@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "quake-kube.fullname" . }}-config
+  labels:
+    {{- include "quake-kube.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    {{- with .Values.quake.serverConfig }}
+    fragLimit: {{ .fragLimit | default 25 }}
+    timeLimit: {{ .timeLimit | default "15m" }}
+    {{- with .bot }}
+    bot:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .game }}
+    game:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .server }}
+    server:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .maps }}
+    maps:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- with .commands }}
+    commands:
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
+    {{- end }}

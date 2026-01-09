@@ -60,3 +60,10 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+ConfigMap name for server configuration
+*/}}
+{{- define "quake-kube.configMapName" -}}
+{{ include "quake-kube.fullname" . }}-config
+{{- end }}

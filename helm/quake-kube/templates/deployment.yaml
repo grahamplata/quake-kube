@@ -5,18 +5,21 @@ metadata:
   labels:
     {{- include "quake-kube.labels" . | nindent 4 }}
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
       {{- include "quake-kube.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        # Trigger pod restart on ConfigMap changes
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.monitoring.enabled }}
+        {{- toYaml .Values.monitoring.annotations | nindent 8 }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "quake-kube.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
@@ -33,37 +36,95 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
+        # Main server container
+        - name: server
           {{- with .Values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - q3
+            - server
+            - --config=/config/config.yaml
+            {{- if .Values.quake.agreeEula }}
+            - --agree-eula
+            {{- end }}
+            - --assets-dir={{ .Values.quake.assetsDir }}
+            - --content-server={{ .Values.quake.contentServer }}
           ports:
             - name: http
-              containerPort: {{ .Values.service.port }}
+              containerPort: {{ .Values.service.ports.http.targetPort }}
               protocol: TCP
-          {{- with .Values.livenessProbe }}
-          livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            - name: game
+              containerPort: {{ .Values.service.ports.game.targetPort }}
+              protocol: UDP
           {{- with .Values.readinessProbe }}
           readinessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.resources }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources.server }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.volumeMounts }}
           volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: assets
+              mountPath: {{ .Values.quake.assetsDir }}
+        {{- if or (hasPrefix "127.0.0.1" (urlParse .Values.quake.contentServer).host) (hasPrefix "localhost" (urlParse .Values.quake.contentServer).host) }}
+        # Content server sidecar (only when using local content server)
+        - name: content-server
+          {{- with .Values.securityContext }}
+          securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- with .Values.volumes }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - q3
+            - content
+            - --addr=:{{ .Values.service.ports.content.targetPort }}
+            - --assets-dir={{ .Values.quake.assetsDir }}
+          ports:
+            - name: content
+              containerPort: {{ .Values.service.ports.content.targetPort }}
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: {{ .Values.service.ports.content.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: {{ .Values.service.ports.content.targetPort }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          {{- with .Values.resources.contentServer }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: assets
+              mountPath: {{ .Values.quake.assetsDir }}
+        {{- end }}
       volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        - name: config
+          configMap:
+            name: {{ include "quake-kube.fullname" . }}-config
+        - name: assets
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "quake-kube.fullname" . }}-assets
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
