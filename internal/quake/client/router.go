@@ -3,7 +3,6 @@ package client
 import (
 	"html/template"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -11,7 +10,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	quakenet "github.com/criticalstack/quake-kube/internal/quake/net"
+	quakenet "github.com/grahamplata/quake-kube/internal/quake/net"
 )
 
 type Config struct {
@@ -36,7 +35,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	}
 	defer f.Close()
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return nil, err
 	}
@@ -82,9 +81,6 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		return c.JSON(http.StatusOK, m)
 	})
 
-	// static files
-	e.GET("/*", echo.WrapHandler(http.FileServer(cfg.Files)))
-
 	// Quake3 assets requests must be proxied to the content server. The host
 	// header is manipulated to ensure that services like CloudFlare will not
 	// reject requests based upon incorrect host header.
@@ -99,6 +95,11 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		}),
 		Transport: &HostHeaderTransport{RoundTripper: http.DefaultTransport, Host: csurl.Host},
 	}))
+	// Ensure that all requests under /assets (including manifest.json) are handled by the group
+	g.GET("/*", func(c echo.Context) error { return nil })
+
+	// static files
+	e.GET("/*", echo.WrapHandler(http.FileServer(cfg.Files)))
 	return e, nil
 }
 

@@ -13,6 +13,7 @@ func DetectHostIPv4() (string, error) {
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
+
 	for _, a := range addrs {
 		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
 			if ipnet.IP.To4() == nil {
@@ -21,5 +22,6 @@ func DetectHostIPv4() (string, error) {
 			return ipnet.IP.String(), nil
 		}
 	}
+
 	return "", errors.New("cannot detect host IPv4 address")
 }

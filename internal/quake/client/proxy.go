@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
 )
 
 var DefaultUpgrader = &websocket.Upgrader{
@@ -22,16 +22,17 @@ var DefaultUpgrader = &websocket.Upgrader{
 
 type WebsocketUDPProxy struct {
 	Upgrader *websocket.Upgrader
+	logger   *zap.Logger
 
 	addr net.Addr
 }
 
-func NewProxy(addr string) (*WebsocketUDPProxy, error) {
+func NewProxy(addr string, logger *zap.Logger) (*WebsocketUDPProxy, error) {
 	raddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return nil, err
 	}
-	return &WebsocketUDPProxy{addr: raddr}, nil
+	return &WebsocketUDPProxy{addr: raddr, logger: logger}, nil
 }
 
 func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -48,7 +49,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	}
 	ws, err := upgrader.Upgrade(rw, req, upgradeHeader)
 	if err != nil {
-		log.Printf("wsproxy: couldn't upgrade %v", err)
+		w.logger.Error("wsproxy: couldn't upgrade", zap.Error(err))
 		return
 	}
 	defer ws.Close()
@@ -72,7 +73,9 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 					}
 				}
 				errc <- err
-				ws.WriteMessage(websocket.CloseMessage, m)
+				if err := ws.WriteMessage(websocket.CloseMessage, m); err != nil {
+					w.logger.Error("wsproxy: error writing close message", zap.Error(err))
+				}
 				return
 			}
 			if bytes.HasPrefix(msg, []byte("\xff\xff\xff\xffport")) {
@@ -108,7 +111,7 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	select {
 	case err = <-errc:
 		if e, ok := err.(*websocket.CloseError); !ok || e.Code == websocket.CloseAbnormalClosure {
-			log.Printf("wsproxy: %v", err)
+			w.logger.Error("wsproxy", zap.Error(err))
 		}
 	case <-ctx.Done():
 		return

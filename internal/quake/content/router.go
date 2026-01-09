@@ -110,7 +110,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 			if len(files) == 0 {
 				return c.HTML(http.StatusOK, fmt.Sprintf("<p>File %s did not contain any map pack files.</p>", file.Filename))
 			}
-			for i, _ := range files {
+			for i := range files {
 				files[i] = "<li>" + files[i] + "</li>"
 			}
 			return c.HTML(http.StatusOK, fmt.Sprintf("<p>Loaded the following map packs from file %s:</p><ul>%s</ul>", file.Filename, strings.Join(files, "")))

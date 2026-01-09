@@ -31,11 +31,11 @@ func SendCommand(addr, cmd string) ([]byte, error) {
 	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		return nil, err
 	}
-	n, err := conn.WriteTo([]byte(fmt.Sprintf("%s%s", OutOfBandHeader, cmd)), raddr)
+	_, err = conn.WriteTo([]byte(fmt.Sprintf("%s%s", OutOfBandHeader, cmd)), raddr)
 	if err != nil {
 		return nil, err
 	}
-	n, _, err = conn.ReadFrom(buffer)
+	n, _, err := conn.ReadFrom(buffer)
 	if err != nil {
 		return nil, err
 	}

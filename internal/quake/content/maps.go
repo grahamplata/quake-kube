@@ -13,7 +13,10 @@ type Map struct {
 }
 
 func getMaps(dir string) (result []*Map, err error) {
-	err = walk(dir, func(path string, info os.FileInfo, err error) error {
+	err = walk(dir, func(path string, info os.FileInfo, werr error) error {
+		if werr != nil {
+			return werr
+		}
 		mp, err := OpenMapPack(path)
 		if err != nil {
 			return err
@@ -25,7 +28,7 @@ func getMaps(dir string) (result []*Map, err error) {
 			return err
 		}
 		result = append(result, maps...)
-		return err
+		return nil
 	}, ".pk3")
 	return
 }
