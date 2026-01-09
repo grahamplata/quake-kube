@@ -1,6 +1,16 @@
 # QuakeKube
 
+> Originally forked from [criticalstack/quake-kube](https://github.com/criticalstack/quake-kube)
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 QuakeKube is a Kubernetes-ified version of [QuakeJS](https://github.com/inolen/quakejs) that runs a dedicated [Quake 3](https://en.wikipedia.org/wiki/Quake_III_Arena) server in a Kubernetes Deployment, and then allow clients to connect via QuakeJS in the browser.
+
+## Prerequisites
+
+- Kubernetes cluster (v1.19+)
+- kubectl configured to communicate with your cluster
+- (Optional) [kind](https://kind.sigs.k8s.io/) for local development
 
 ## Quick start
 
@@ -9,29 +19,54 @@ QuakeKube is a Kubernetes-ified version of [QuakeJS](https://github.com/inolen/q
 Deploy the example manifest:
 
 ```shell
-$ kubectl apply -f https://raw.githubusercontent.com/grahamplata/quake-kube/master/example.yaml
+kubectl apply -f https://raw.githubusercontent.com/grahamplata/quake-kube/gplata/init/example.yaml
 ```
-
 
 ### Without an existing K8s cluster
 
-Start an instance of Kubernetes locally using [cinder](https://docs.crit.sh/cinder-guide/what-is-cinder.html) (or [kind](https://kind.sigs.k8s.io/)):
+Start an instance of Kubernetes locally using [kind](https://kind.sigs.k8s.io/):
 
 ```shell
-$ cinder create cluster
+kind create cluster
 ```
 
 Deploy the example manifest:
 
 ```shell
-$ kubectl apply -f example.yaml
+kubectl apply -f example.yaml
 ```
 
-Finally, navigate to `http://$(cinder get ip):30001` in the browser.
+Finally, navigate to `http://localhost:30001` in the browser.
 
 ## How it works
 
-QuakeKube makes use of [ioquake](https://www.ioquake.org) for the Quake 3 dedicated server, and [QuakeJS](https://github.com/inolen/quakejs), a port of ioquake to javascript using [Emscripten](http://github.com/kripken/emscripten), to provide an in-browser game client.
+QuakeKube makes use of [ioquake](https://www.ioquake3.org) for the Quake 3 dedicated server, and [QuakeJS](https://github.com/inolen/quakejs), a port of ioquake to javascript using [Emscripten](http://github.com/kripken/emscripten), to provide an in-browser game client.
+
+### Architecture
+
+```mermaid
+flowchart TB
+    Browser["Browser Client<br/>(QuakeJS in Browser)"]
+    Assets["Game Assets<br/>(pk3 files, textures, maps)"]
+
+    subgraph Server["Server Components"]
+      CMux["CMux<br/>(Multiplexes by protocol)"]
+      WSProxy["WebSocket Proxy<br/>(WebSocket to UDP)"]
+      GameServer["Quake 3 Dedicated Server<br/>(ioq3ded binary)"]
+      ContentServer["Content Server<br/>Serves maps & handles uploads"]
+      Config["Server Configuration<br/>(maps, game rules, settings)"]
+
+      CMux -->|WebSocket| WSProxy
+      CMux -->|HTTP| ContentServer
+      WSProxy -->|UDP| GameServer
+      
+    end
+    
+    Browser -->|WebSocket Connection| CMux
+    Config -.->|Mounted at startup| GameServer
+    Assets -.->|Shared storage| GameServer
+    Assets -.->|Shared storage| ContentServer
+```
 
 ### Networking
 
@@ -57,7 +92,7 @@ data:
     fragLimit: 25
     timeLimit: 15m
     game:
-      motd: "Welcome to Critical Stack"
+      motd: "Welcome to Quake Kube"
       type: FreeForAll
       forceRespawn: false
       inactivity: 10m
@@ -154,12 +189,26 @@ This will add an additional dialog to the in-browser client to accept the passwo
 
 The content server hosts a small upload app to allow uploading `pk3` or `zip` files containing maps. The content server in the [example.yaml](example.yaml) shares a volume with the game server, effectively "side-loading" the map content, however, in the future the game server will introspect into the maps and make sure that it can fulfill the users map configuration before starting.
 
-### Development
+## Development
 
 The easiest way to develop quake-kube is building the binary locally with `make` and running it directly. This only requires that you have the `ioq3ded` binary in your path:
 
 ```shell
-$ bin/q3 server -c config.yaml --assets-dir $HOME/.q3a --agree-eula
+bin/q3 server -c config.yaml --assets-dir $HOME/.q3a --agree-eula
+```
+
+### Project Structure
+
+```
+quake-kube/
+├── cli/              # CLI tool implementation
+├── internal/quake/   # Core game server logic
+├── pkg/              # Reusable packages (q3, content server)
+├── public/           # QuakeJS client assets
+├── tools/            # Build and development tools
+├── config.yaml       # Default server configuration
+├── example.yaml      # Kubernetes deployment manifest
+└── Dockerfile        # Multi-platform container image
 ```
 
 ### Multi-platform images
@@ -168,14 +217,48 @@ Container images are being cross-compiled with [Docker Buildx](https://docs.dock
 
 Docker Buildx uses [QEMU](https://www.qemu.org/) to virtualize non-native platforms, which has unfortunately had long-running issues running the Go compiler:
 
-* [golang/go#24656](https://github.com/golang/go/issues/24656)
-* [https://bugs.launchpad.net/qemu/+bug/1696773](https://bugs.launchpad.net/qemu/+bug/1696773)
+- [golang/go#24656](https://github.com/golang/go/issues/24656)
+- [https://bugs.launchpad.net/qemu/+bug/1696773](https://bugs.launchpad.net/qemu/+bug/1696773)
 
 This issue is circumvented by ensuring that the Go compiler does not run across multiple hardware threads, which is why the affinity is being limited in the Dockerfile.
 
+## Troubleshooting
+
+### Port Already in Use
+
+If port 30001 is already in use, you can modify the NodePort in `example.yaml` to use a different port.
+
+### Browser Can't Connect
+
+- Verify the pods are running: `kubectl get pods -l app=quakekube`
+- Check service status: `kubectl get svc quake-kube`
+- For kind clusters, ensure port mapping is configured: `kind create cluster --config kind-config.yaml`
+- Check the service logs: `kubectl logs -l app=quakekube`
+
+### Game Server Not Starting
+
+- Verify the `--agree-eula` flag is set in the deployment
+- Check the server configuration in the ConfigMap
+- Ensure the game assets volume is properly mounted
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## Credits
 
-* [inolen/quakejs](https://github.com/inolen/quakejs) - The really awesome QuakeJS project that makes this possible.
-* [ioquake/ioq3](https://github.com/ioquake/ioq3) - The community supported version of Quake 3 used by QuakeJS. It is licensed under the GPLv2.
-* [begleysm/quakejs](https://github.com/begleysm/quakejs) - Information in the README.md (very helpful) was used as a guide, as well as, some forked assets of this project (which came from quakejs-web originally) were used.
-* [joz3d.net](http://www.joz3d.net/html/q3console.html) - Useful information about configuration values.
+- [criticalstack/quake-kube](https://github.com/criticalstack/quake-kube) - The original QuakeKube project that this fork is based on.
+- [inolen/quakejs](https://github.com/inolen/quakejs) - The really awesome QuakeJS project that makes this possible.
+- [ioquake/ioq3](https://github.com/ioquake/ioq3) - The community supported version of Quake 3 used by QuakeJS. It is licensed under the GPLv2.
+- [begleysm/quakejs](https://github.com/begleysm/quakejs) - Information in the README.md (very helpful) was used as a guide, as well as, some forked assets of this project (which came from quakejs-web originally) were used.
+- [joz3d.net](http://www.joz3d.net/html/q3console.html) - Useful information about configuration values.
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
