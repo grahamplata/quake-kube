@@ -50,6 +50,7 @@ spec:
       containers:
         - name: server
           image: docker.io/grahamplata/quake:latest
+          imagePullPolicy: Always
           command:
             - q3
             - server
@@ -76,6 +77,7 @@ spec:
               mountPath: /assets
         - name: content-server
           image: docker.io/grahamplata/quake:latest
+          imagePullPolicy: Always
           command:
             - q3
             - content
