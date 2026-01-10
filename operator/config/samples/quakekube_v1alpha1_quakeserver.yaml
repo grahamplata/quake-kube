@@ -1,0 +1,28 @@
+# QuakeServer creates a Quake 3 dedicated server in Kubernetes
+# This example uses a template and overrides some settings
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServer
+metadata:
+  name: arena-1
+  labels:
+    app.kubernetes.io/name: quakeserver
+    app.kubernetes.io/instance: arena-1
+spec:
+  # Required: Must accept EULA to run the server
+  agreeEula: true
+
+  # Reference the deathmatch template for base configuration
+  templateRef:
+    name: deathmatch-template
+
+  # Override template settings
+  serverConfig:
+    fragLimit: 25
+    game:
+      motd: "Arena 1 - Good luck!"
+    server:
+      hostname: "QuakeKube Arena 1"
+
+  # Security context overrides
+  securityContext:
+    readOnlyRootFilesystem: false

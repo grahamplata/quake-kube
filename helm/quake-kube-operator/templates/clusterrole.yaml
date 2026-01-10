@@ -1,0 +1,88 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "quake-kube-operator.fullname" . }}-manager
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+rules:
+# Core resources for managing QuakeServer child resources
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# Events for recording controller actions
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+# Deployments for QuakeServer pods
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# Gateway API routes for network access
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  - udproutes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# QuakeKube CRDs
+- apiGroups:
+  - quakekube.io
+  resources:
+  - quakeservers
+  - quakeservertemplates
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+# Finalizers for cleanup
+- apiGroups:
+  - quakekube.io
+  resources:
+  - quakeservers/finalizers
+  - quakeservertemplates/finalizers
+  verbs:
+  - update
+# Status updates
+- apiGroups:
+  - quakekube.io
+  resources:
+  - quakeservers/status
+  - quakeservertemplates/status
+  verbs:
+  - get
+  - patch
+  - update

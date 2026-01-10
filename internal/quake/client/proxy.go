@@ -52,13 +52,21 @@ func (w *WebsocketUDPProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		w.logger.Error("wsproxy: couldn't upgrade", zap.Error(err))
 		return
 	}
-	defer ws.Close()
+	defer func() {
+		if err := ws.Close(); err != nil {
+			w.logger.Error("wsproxy: error closing websocket", zap.Error(err))
+		}
+	}()
 
 	backend, err := net.ListenPacket("udp", "0.0.0.0:0")
 	if err != nil {
 		return
 	}
-	defer backend.Close()
+	defer func() {
+		if err := backend.Close(); err != nil {
+			w.logger.Error("wsproxy: error closing backend", zap.Error(err))
+		}
+	}()
 
 	errc := make(chan error, 1)
 

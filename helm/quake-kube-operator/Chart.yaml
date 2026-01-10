@@ -1,0 +1,18 @@
+apiVersion: v2
+name: quake-kube-operator
+description: A Helm chart for the QuakeKube Operator - manages Quake 3 servers on Kubernetes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://github.com/grahamplata/quake-kube
+sources:
+  - https://github.com/grahamplata/quake-kube
+maintainers:
+  - name: Graham Plata
+    email: graham@grahamplata.com
+keywords:
+  - quake
+  - operator
+  - kubernetes
+  - game-server
+kubeVersion: ">=1.25.0-0"

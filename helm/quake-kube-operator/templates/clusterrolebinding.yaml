@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "quake-kube-operator.fullname" . }}-manager
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "quake-kube-operator.fullname" . }}-manager
+subjects:
+- kind: ServiceAccount
+  name: {{ include "quake-kube-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}

@@ -2,6 +2,7 @@ package content
 
 import (
 	"archive/zip"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,13 +20,17 @@ func getMaps(dir string) (result []*Map, err error) {
 		}
 		mp, err := OpenMapPack(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to open map pack: %w", err)
 		}
-		defer mp.Close()
+		defer func() {
+			if err := mp.Close(); err != nil {
+				fmt.Printf("failed to close map pack: %v\n", err)
+			}
+		}()
 
 		maps, err := mp.Maps()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get maps: %w", err)
 		}
 		result = append(result, maps...)
 		return nil

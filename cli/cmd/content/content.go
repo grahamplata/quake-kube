@@ -1,6 +1,7 @@
 package content
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -25,27 +26,27 @@ func NewCommand() *cobra.Command {
 			if !filepath.IsAbs(assetsDir) {
 				assetsDir, err = filepath.Abs(assetsDir)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to get absolute path for assets directory: %w", err)
 				}
 			}
 
 			if err := os.MkdirAll(assetsDir, 0755); err != nil {
-				return err
+				return fmt.Errorf("failed to create assets directory: %w", err)
 			}
 
 			if seedContentURL != "" {
 				u, err := url.Parse(seedContentURL)
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to parse seed content URL: %w", err)
 				}
 				if err := content.CopyAssets(u, assetsDir); err != nil {
-					return err
+					return fmt.Errorf("failed to copy assets: %w", err)
 				}
 			}
 
 			e, err := content.NewRouter(&content.Config{AssetsDir: assetsDir})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create router: %w", err)
 			}
 			s := &http.Server{
 				Addr:           addr,
@@ -59,7 +60,7 @@ func NewCommand() *cobra.Command {
 				ServiceName: "q3-content",
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create logger: %w", err)
 			}
 
 			l.Info("starting server", zap.String("addr", addr))

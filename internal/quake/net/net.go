@@ -6,8 +6,6 @@ import (
 	"net"
 	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -25,7 +23,11 @@ func SendCommand(addr, cmd string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 	buffer := make([]byte, 1024*1024)
 	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
@@ -121,9 +123,16 @@ func GetStatus(addr string) (*StatusResponse, error) {
 		status := &StatusResponse{
 			Configuration: parseMap(parts[1]),
 		}
-		status.Players, _ = parsePlayers(parts[2])
+		players, err := parsePlayers(parts[2])
+		if err != nil {
+			// Log warning but continue with empty player list
+			// Player parsing can fail on malformed data but we still want config
+			status.Players = make([]Player, 0)
+		} else {
+			status.Players = players
+		}
 		return status, nil
 	default:
-		return nil, errors.Errorf("cannot parse response: %q", resp)
+		return nil, fmt.Errorf("cannot parse response: %q", resp)
 	}
 }

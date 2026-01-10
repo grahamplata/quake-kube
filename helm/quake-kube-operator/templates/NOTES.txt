@@ -1,0 +1,81 @@
+QuakeKube Operator has been installed!
+
+1. Check the operator is running:
+
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "quake-kube-operator.name" . }}
+
+2. View operator logs:
+
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "quake-kube-operator.name" . }} -f
+
+3. Create a QuakeServer:
+
+   cat <<EOF | kubectl apply -f -
+   apiVersion: quakekube.io/v1alpha1
+   kind: QuakeServer
+   metadata:
+     name: my-quake-server
+   spec:
+     agreeEula: true
+     serverConfig:
+       fragLimit: 25
+       timeLimit: "15m"
+       game:
+         type: FreeForAll
+         motd: "Welcome to my Quake server!"
+       server:
+         hostname: "My Quake Server"
+         maxClients: 12
+       bot:
+         minPlayers: 4
+         skill: 3
+       maps:
+         - name: q3dm7
+         - name: q3dm17
+   EOF
+
+4. Check server status:
+
+   kubectl get quakeservers
+
+5. Create a reusable template:
+
+   cat <<EOF | kubectl apply -f -
+   apiVersion: quakekube.io/v1alpha1
+   kind: QuakeServerTemplate
+   metadata:
+     name: ffa-standard
+   spec:
+     serverConfig:
+       fragLimit: 25
+       game:
+         type: FreeForAll
+       server:
+         maxClients: 16
+       bot:
+         minPlayers: 4
+         skill: 3
+   EOF
+
+   Then reference it in a QuakeServer:
+
+   cat <<EOF | kubectl apply -f -
+   apiVersion: quakekube.io/v1alpha1
+   kind: QuakeServer
+   metadata:
+     name: server-from-template
+   spec:
+     agreeEula: true
+     templateRef:
+       name: ffa-standard
+     serverConfig:
+       server:
+         hostname: "Custom Name"
+   EOF
+
+{{- if .Values.webhook.enabled }}
+
+Webhooks are enabled. Ensure cert-manager is installed for TLS certificate management.
+{{- end }}
+
+For more information, visit: https://github.com/grahamplata/quake-kube

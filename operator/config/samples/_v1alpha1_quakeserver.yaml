@@ -1,0 +1,12 @@
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServer
+metadata:
+  labels:
+    app.kubernetes.io/name: quakeserver
+    app.kubernetes.io/instance: quakeserver-sample
+    app.kubernetes.io/part-of: operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: operator
+  name: quakeserver-sample
+spec:
+  # TODO(user): Add fields here

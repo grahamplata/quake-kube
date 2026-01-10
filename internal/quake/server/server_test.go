@@ -8,6 +8,7 @@ import (
 	"time"
 
 	quakenet "github.com/grahamplata/quake-kube/internal/quake/net"
+	"go.uber.org/zap"
 )
 
 type mockNetClient struct {
@@ -74,17 +75,133 @@ func TestServerMonitorMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Run monitorMetrics in a shorter interval for testing if we could,
-	// but it's hardcoded to 5s. We can just test that it calls GetStatus.
-	// For this test, we'll just verify it doesn't crash and we can call it.
-
-	// In a real test, we might want to make the interval configurable.
-	// But since I don't want to change the code too much now, I'll just
-	// verify the logic by running it briefly.
-
 	go s.monitorMetrics(ctx, "localhost", "27960")
-
-	// Just wait a tiny bit to ensure it runs
 	time.Sleep(100 * time.Millisecond)
 	cancel()
+}
+
+func TestWatch_RegularFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	if err := os.WriteFile(configFile, []byte("test: value"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	logger := zap.NewNop()
+	s := NewServer(
+		WithConfigFile(configFile),
+		WithDir(tmpDir),
+		WithDebounceInterval(100*time.Millisecond),
+		WithLogger(logger),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := s.watch(ctx)
+	if err != nil {
+		t.Fatalf("watch failed: %v", err)
+	}
+
+	// Update the file
+	time.Sleep(50 * time.Millisecond)
+	if err := os.WriteFile(configFile, []byte("test: newvalue"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for change notification
+	select {
+	case <-ch:
+		t.Log("Change detected successfully")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for change notification")
+	}
+}
+
+func TestWatch_Symlink(t *testing.T) {
+	tmpDir := t.TempDir()
+	dataDir := filepath.Join(tmpDir, "..data")
+	if err := os.Mkdir(dataDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := filepath.Join(dataDir, "config.yaml")
+	if err := os.WriteFile(configFile, []byte("test: value"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create symlink pointing to data directory (simulating ConfigMap)
+	symlinkPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.Symlink(configFile, symlinkPath); err != nil {
+		t.Fatal(err)
+	}
+
+	logger := zap.NewNop()
+	s := NewServer(
+		WithConfigFile(symlinkPath),
+		WithDir(tmpDir),
+		WithDebounceInterval(100*time.Millisecond),
+		WithLogger(logger),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	ch, err := s.watch(ctx)
+	if err != nil {
+		t.Fatalf("watch failed: %v", err)
+	}
+
+	// Simulate ConfigMap update by creating new data and updating symlink
+	time.Sleep(50 * time.Millisecond)
+
+	newDataDir := filepath.Join(tmpDir, "..data_new")
+	if err := os.Mkdir(newDataDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	newConfigFile := filepath.Join(newDataDir, "config.yaml")
+	if err := os.WriteFile(newConfigFile, []byte("test: newvalue"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Remove old symlink and create new one
+	if err := os.Remove(symlinkPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(newConfigFile, symlinkPath); err != nil {
+		t.Fatal(err)
+	}
+
+	// Wait for change notification
+	select {
+	case <-ch:
+		t.Log("ConfigMap change detected successfully")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for ConfigMap change notification")
+	}
+}
+
+func TestGetWatchPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configFile := filepath.Join(tmpDir, "config.yaml")
+
+	if err := os.WriteFile(configFile, []byte("test: value"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s := NewServer(
+		WithConfigFile(configFile),
+		WithDir(tmpDir),
+	)
+
+	watchPath, err := s.getWatchPath()
+	if err != nil {
+		t.Fatalf("getWatchPath failed: %v", err)
+	}
+
+	if watchPath != configFile {
+		t.Errorf("expected watch path %s, got %s", configFile, watchPath)
+	}
 }

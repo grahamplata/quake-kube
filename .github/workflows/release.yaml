@@ -69,6 +69,29 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Extract metadata (tags, labels) for operator
+        id: meta_operator
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-operator
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ !contains(github.ref, '-') }}
+
+      - name: Build and push operator container image
+        uses: docker/build-push-action@v6
+        with:
+          context: operator
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_operator.outputs.tags }}
+          labels: ${{ steps.meta_operator.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   helm:
     name: Release Helm Chart
     runs-on: ubuntu-latest
@@ -88,7 +111,9 @@ jobs:
       - name: Update Chart.yaml appVersion
         run: |
           sed -i "s/^appVersion:.*/appVersion: \"${{ needs.release.outputs.version }}\"/" helm/quake-kube/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${{ needs.release.outputs.version }}\"/" helm/quake-kube-operator/Chart.yaml
           cat helm/quake-kube/Chart.yaml
+          cat helm/quake-kube-operator/Chart.yaml
 
       - name: Setup Helm
         uses: azure/setup-helm@v4

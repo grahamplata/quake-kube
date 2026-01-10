@@ -1,0 +1,8 @@
+## Append samples of your project ##
+resources:
+- _v1alpha1_quakeserver.yaml
+- _v1alpha1_quakeservertemplate.yaml
+- quakekube_v1alpha1_quakeservertemplate.yaml
+- quakekube_v1alpha1_quakeserver.yaml
+- quakekube_v1alpha1_quakeserver_gateway.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
