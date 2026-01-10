@@ -2,10 +2,13 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -29,7 +32,7 @@ var (
 func NewCommand() *cobra.Command {
 	var clientAddr, serverAddr, contentServer, assetsDir, configFile string
 	var acceptEula, noAssetsDownload bool
-	var watchInterval time.Duration
+	var debounceInterval time.Duration
 
 	cmd := &cobra.Command{
 		Use:          "server",
@@ -39,10 +42,14 @@ func NewCommand() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
+			// Set up signal handling for graceful shutdown
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 			// Must accept Eula to proceed
 			if !acceptEula {
 				fmt.Print(server.Q3DemoEULA)
-				return errors.New("You must agree to the EULA to continue")
+				return errors.New("you must agree to the EULA to continue")
 			}
 
 			logger, err := logger.NewLogger(logger.Config{
@@ -50,8 +57,15 @@ func NewCommand() *cobra.Command {
 				ServiceName: "q3-server",
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create logger: %w", err)
 			}
+
+			// Handle shutdown signal
+			go func() {
+				sig := <-sigChan
+				logger.Info("received signal, initiating graceful shutdown", zap.String("signal", sig.String()))
+				cancel()
+			}()
 
 			// Download free ioquake3 point release files (pak1-pak8)
 			// These are freely available and don't require purchasing Quake 3
@@ -64,7 +78,7 @@ func NewCommand() *cobra.Command {
 			go func() {
 				s := server.NewServer(
 					server.WithDir(assetsDir),
-					server.WithWatchInterval(watchInterval),
+					server.WithDebounceInterval(debounceInterval),
 					server.WithConfigFile(configFile),
 					server.WithAddr(serverAddr),
 					server.WithLogger(logger),
@@ -86,7 +100,7 @@ func NewCommand() *cobra.Command {
 			s := &client.Server{Addr: clientAddr, Handler: e, ServerAddr: serverAddr, Logger: logger}
 
 			logger.Info("starting server", zap.String("addr", clientAddr))
-			return s.ListenAndServe()
+			return s.ListenAndServe(ctx)
 		},
 	}
 
@@ -96,7 +110,7 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringVar(&assetsDir, "assets-dir", "assets", "location for game files")
 	cmd.Flags().StringVar(&clientAddr, "client-addr", "0.0.0.0:8080", "client address <host>:<port>")
 	cmd.Flags().StringVar(&serverAddr, "server-addr", "0.0.0.0:27960", "dedicated server <host>:<port>")
-	cmd.Flags().DurationVar(&watchInterval, "watch-interval", 15*time.Second, "dedicated server <host>:<port>")
+	cmd.Flags().DurationVar(&debounceInterval, "debounce-interval", 2*time.Second, "debounce interval for config file changes")
 	cmd.Flags().BoolVar(&noAssetsDownload, "no-assets-download", false, "skip downloading assets from content server")
 
 	return cmd

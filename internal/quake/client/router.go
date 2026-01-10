@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 
 	quakenet "github.com/grahamplata/quake-kube/internal/quake/net"
 )
@@ -22,7 +24,22 @@ type Config struct {
 
 func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e := echo.New()
-	e.Use(middleware.Logger())
+
+	logger, _ := zap.NewProduction()
+
+	// use new logger middleware SA1019: middleware.Logger is deprecated: please use middleware.RequestLogger or middleware.RequestLoggerWithConfig instead. (staticcheck)
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Info("request",
+				zap.String("URI", v.URI),
+				zap.Int("status", v.Status),
+			)
+
+			return nil
+		},
+	}))
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
@@ -33,7 +50,11 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			logger.Error("error closing index.html", zap.Error(err))
+		}
+	}()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
@@ -49,7 +70,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/", func(c echo.Context) error {
 		m, err := quakenet.GetInfo(cfg.ServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serve index: %w", err)
 		}
 		needsPass := false
 		if v, ok := m["g_needpass"]; ok {
@@ -68,7 +89,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/info", func(c echo.Context) error {
 		m, err := quakenet.GetInfo(cfg.ServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serve info: %w", err)
 		}
 		return c.JSON(http.StatusOK, m)
 	})
@@ -76,7 +97,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/status", func(c echo.Context) error {
 		m, err := quakenet.GetStatus(cfg.ServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serve status: %w", err)
 		}
 		return c.JSON(http.StatusOK, m)
 	})
