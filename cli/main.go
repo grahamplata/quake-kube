@@ -9,14 +9,16 @@ import (
 	"github.com/grahamplata/quake-kube/pkg/logger"
 )
 
+var version = "dev"
+
 var global struct {
 	Verbosity int
 }
 
 func main() {
 	cmd := &cobra.Command{
-		Use:   "q3",
-		Short: "",
+		Use:     "q3",
+		Version: version,
 	}
 	cmd.AddCommand(
 		content.NewCommand(),

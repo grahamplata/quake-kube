@@ -1,9 +1,9 @@
 BIN_DIR ?= bin
-LDFLAGS := -s -w
 GOFLAGS = -gcflags "all=-trimpath=$(PWD)" -asmflags "all=-trimpath=$(PWD)"
 GO_BUILD_ENV_VARS := GO111MODULE=on CGO_ENABLED=0
-VERSION ?= latest
-IMAGE   ?= docker.io/grahamplata/quake:$(VERSION)
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+LDFLAGS := -s -w -X main.version=$(VERSION)
+IMAGE   ?= ghcr.io/grahamplata/quake-kube:$(VERSION)
 
 q3: gen
 	@$(GO_BUILD_ENV_VARS) go build -o $(BIN_DIR)/q3 $(GOFLAGS) -ldflags '$(LDFLAGS)' ./cli
