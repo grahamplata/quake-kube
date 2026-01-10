@@ -47,7 +47,11 @@ func TestCmuxImport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create listener: %v", err)
 	}
-	defer l.Close()
+	defer func() {
+		if err := l.Close(); err != nil {
+			t.Errorf("failed to close listener: %v", err)
+		}
+	}()
 
 	m := cmux.New(l)
 
@@ -76,7 +80,11 @@ func TestNewProxy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create UDP listener: %v", err)
 	}
-	defer udpConn.Close()
+	defer func() {
+		if err := udpConn.Close(); err != nil {
+			t.Errorf("failed to close UDP listener: %v", err)
+		}
+	}()
 
 	proxy, err := NewProxy(udpConn.LocalAddr().String(), logger)
 	if err != nil {
@@ -92,7 +100,10 @@ func TestNewProxy(t *testing.T) {
 func TestServer_HTTPRouting(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("http-ok"))
+		_, err := w.Write([]byte("http-ok"))
+		if err != nil {
+			t.Errorf("failed to write response: %v", err)
+		}
 	})
 
 	// Create a UDP listener for the proxy target
@@ -104,7 +115,11 @@ func TestServer_HTTPRouting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create UDP listener: %v", err)
 	}
-	defer udpConn.Close()
+	defer func() {
+		if err := udpConn.Close(); err != nil {
+			t.Errorf("failed to close UDP listener: %v", err)
+		}
+	}()
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -135,7 +150,11 @@ func TestServer_HTTPRouting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to make HTTP request: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("failed to close response body: %v", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("expected status 200, got %d", resp.StatusCode)
@@ -166,7 +185,11 @@ func TestServer_GracefulShutdown(t *testing.T) {
 
 	udpAddr, _ := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	udpConn, _ := net.ListenUDP("udp", udpAddr)
-	defer udpConn.Close()
+	defer func() {
+		if err := udpConn.Close(); err != nil {
+			t.Errorf("failed to close UDP listener: %v", err)
+		}
+	}()
 
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

@@ -98,7 +98,14 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 			}
 		}
 		// Close the listener to stop cmux
-		l.Close()
+		err := l.Close()
+		if err != nil {
+			if shutdownErr != nil {
+				shutdownErr = fmt.Errorf("%v; listener close: %w", shutdownErr, err)
+			} else {
+				shutdownErr = fmt.Errorf("listener close: %w", err)
+			}
+		}
 		return shutdownErr
 	case err := <-errChan:
 		return fmt.Errorf("server failed: %w", err)

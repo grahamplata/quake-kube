@@ -261,12 +261,20 @@ func (s *Server) watch(ctx context.Context) (<-chan struct{}, error) {
 	// Determine what to watch
 	watchPath, err := s.getWatchPath()
 	if err != nil {
-		watcher.Close()
+		defer func() {
+			if err := watcher.Close(); err != nil {
+				fmt.Printf("failed to close watcher: %v\n", err)
+			}
+		}()
 		return nil, fmt.Errorf("failed to get watch path: %v", err)
 	}
 
 	if err := watcher.Add(watchPath); err != nil {
-		watcher.Close()
+		defer func() {
+			if err := watcher.Close(); err != nil {
+				fmt.Printf("failed to close watcher: %v\n", err)
+			}
+		}()
 		return nil, fmt.Errorf("failed to watch %s: %w", watchPath, err)
 	}
 
@@ -277,7 +285,11 @@ func (s *Server) watch(ctx context.Context) (<-chan struct{}, error) {
 	ch := make(chan struct{})
 
 	go func() {
-		defer watcher.Close()
+		defer func() {
+			if err := watcher.Close(); err != nil {
+				fmt.Printf("failed to close watcher: %v\n", err)
+			}
+		}()
 
 		var debounceTimer *time.Timer
 		var timerCh <-chan time.Time

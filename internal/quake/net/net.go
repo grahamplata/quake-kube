@@ -23,7 +23,11 @@ func SendCommand(addr, cmd string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			fmt.Printf("failed to close connection: %v\n", err)
+		}
+	}()
 
 	buffer := make([]byte, 1024*1024)
 	if err := conn.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {

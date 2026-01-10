@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -19,7 +20,22 @@ type Config struct {
 
 func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e := echo.New()
-	e.Use(middleware.Logger())
+
+	logger, _ := zap.NewProduction()
+
+	// use new logger middleware SA1019: middleware.Logger is deprecated: please use middleware.RequestLogger or middleware.RequestLoggerWithConfig instead. (staticcheck)
+	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:    true,
+		LogStatus: true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			logger.Info("request",
+				zap.String("URI", v.URI),
+				zap.Int("status", v.Status),
+			)
+
+			return nil
+		},
+	}))
 	e.Use(middleware.Recover())
 	//e.Use(middleware.BodyLimit("100M"))
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -78,7 +94,11 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		if err != nil {
 			return fmt.Errorf("failed to open file: %w", err)
 		}
-		defer src.Close()
+		defer func() {
+			if err := src.Close(); err != nil {
+				fmt.Printf("failed to close file: %v\n", err)
+			}
+		}()
 
 		if hasExts(file.Filename, ".zip") {
 			r, err := zip.NewReader(src, file.Size)
@@ -94,13 +114,21 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 				if err != nil {
 					return fmt.Errorf("failed to open file: %w", err)
 				}
-				defer pak.Close()
+				defer func() {
+					if err := pak.Close(); err != nil {
+						fmt.Printf("failed to close file: %v\n", err)
+					}
+				}()
 
 				dst, err := os.Create(filepath.Join(cfg.AssetsDir, name, filepath.Base(f.Name)))
 				if err != nil {
 					return fmt.Errorf("failed to create file: %w", err)
 				}
-				defer dst.Close()
+				defer func() {
+					if err := dst.Close(); err != nil {
+						fmt.Printf("failed to close file: %v\n", err)
+					}
+				}()
 
 				if _, err = io.Copy(dst, pak); err != nil {
 					return fmt.Errorf("failed to copy file: %w", err)
@@ -119,7 +147,11 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		if err != nil {
 			return fmt.Errorf("failed to create file: %w", err)
 		}
-		defer dst.Close()
+		defer func() {
+			if err := dst.Close(); err != nil {
+				fmt.Printf("failed to close file: %v\n", err)
+			}
+		}()
 
 		if _, err = io.Copy(dst, src); err != nil {
 			return fmt.Errorf("failed to copy file: %w", err)

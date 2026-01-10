@@ -80,8 +80,12 @@ func extractFromZip(data []byte, dir string, forceBaseQ3 bool) error {
 			if err != nil {
 				return fmt.Errorf("failed to open file: %w", err)
 			}
+			defer func() {
+				if err := rc.Close(); err != nil {
+					fmt.Printf("failed to close file: %v\n", err)
+				}
+			}()
 			nestedData, err := io.ReadAll(rc)
-			rc.Close()
 			if err != nil {
 				return fmt.Errorf("failed to read file: %w", err)
 			}
@@ -108,7 +112,11 @@ func extractFromGzip(data []byte, dir string, forceBaseQ3 bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to read gzip: %w", err)
 	}
-	defer gr.Close()
+	defer func() {
+		if err := gr.Close(); err != nil {
+			fmt.Printf("failed to close gzip: %v\n", err)
+		}
+	}()
 
 	tr := tar.NewReader(gr)
 	found := false
@@ -143,7 +151,11 @@ func saveFileFromReader(f *zip.File, dir string, forceBaseQ3 bool) error {
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
-	defer rc.Close()
+	defer func() {
+		if err := rc.Close(); err != nil {
+			fmt.Printf("failed to close file: %v\n", err)
+		}
+	}()
 	content, err := io.ReadAll(rc)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %w", err)

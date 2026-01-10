@@ -21,7 +21,11 @@ func GetBody(url string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot get url %q: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Printf("failed to close response body: %v\n", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("cannot get url %q: %s", url, http.StatusText(resp.StatusCode))
@@ -43,7 +47,11 @@ func GetUntil(url string, stop <-chan struct{}) error {
 			if err != nil {
 				continue
 			}
-			resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					fmt.Printf("failed to close response body: %v\n", err)
+				}
+			}()
 			return nil
 		}
 	}
