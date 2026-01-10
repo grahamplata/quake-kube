@@ -3,7 +3,6 @@ module github.com/grahamplata/quake-kube
 go 1.23
 
 require (
-	github.com/cockroachdb/cmux v0.0.0-20170110192607-30d10be49292
 	github.com/google/go-cmp v0.3.0
 	github.com/gorilla/websocket v1.4.0
 	github.com/labstack/echo/v4 v4.1.16
@@ -11,6 +10,7 @@ require (
 	github.com/prometheus/client_golang v0.9.3
 	github.com/shurcooL/httpfs v0.0.0-20230704072500-f1e31cf0ba5c
 	github.com/shurcooL/vfsgen v0.0.0-20230704071429-0000e147ea92
+	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.0.0
 	k8s.io/apimachinery v0.18.6
 	sigs.k8s.io/yaml v1.2.0
@@ -39,10 +39,10 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.1.0 // indirect
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.0.0-20200221231518-2aa609cf4a9d // indirect
-	golang.org/x/net v0.0.0-20200226121028-0de0cce0169b // indirect
-	golang.org/x/sys v0.0.0-20200223170610-d5e6a3e2c0ae // indirect
-	golang.org/x/text v0.3.2 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/net v0.0.0-20201202161906-c7110b5ffcbb // indirect
+	golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f // indirect
+	golang.org/x/text v0.3.3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 	k8s.io/klog v1.0.0 // indirect
