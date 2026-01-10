@@ -1,6 +1,7 @@
 package client
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -49,7 +50,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/", func(c echo.Context) error {
 		m, err := quakenet.GetInfo(cfg.ServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serve index: %w", err)
 		}
 		needsPass := false
 		if v, ok := m["g_needpass"]; ok {
@@ -68,7 +69,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/info", func(c echo.Context) error {
 		m, err := quakenet.GetInfo(cfg.ServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serve info: %w", err)
 		}
 		return c.JSON(http.StatusOK, m)
 	})
@@ -76,7 +77,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/status", func(c echo.Context) error {
 		m, err := quakenet.GetStatus(cfg.ServerAddr)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to serve status: %w", err)
 		}
 		return c.JSON(http.StatusOK, m)
 	})

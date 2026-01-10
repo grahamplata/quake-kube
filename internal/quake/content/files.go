@@ -1,6 +1,7 @@
 package content
 
 import (
+	"fmt"
 	"hash/crc32"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ func getAssets(dir string) (files []*File, err error) {
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read file: %w", err)
 		}
 		n := crc32.ChecksumIEEE(data)
 		path = strings.TrimPrefix(path, dir+"/")
@@ -45,7 +46,7 @@ func walk(root string, walkFn filepath.WalkFunc, exts ...string) error {
 			if os.IsPermission(err) {
 				return nil
 			}
-			return err
+			return fmt.Errorf("failed to walk: %w", err)
 		}
 		if !hasExts(path, exts...) {
 			return nil

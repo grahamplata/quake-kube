@@ -3,6 +3,7 @@ module github.com/grahamplata/quake-kube
 go 1.24.0
 
 require (
+	github.com/fsnotify/fsnotify v1.4.7
 	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/labstack/echo/v4 v4.15.0

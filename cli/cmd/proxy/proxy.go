@@ -35,7 +35,7 @@ func NewCommand() *cobra.Command {
 			if clientAddr == "" {
 				hostIPv4, err := net.DetectHostIPv4()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to detect host IPv4: %w", err)
 				}
 				clientAddr = fmt.Sprintf("%s:8080", hostIPv4)
 			}
@@ -45,7 +45,7 @@ func NewCommand() *cobra.Command {
 				ServiceName: "q3-proxy",
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create logger: %w", err)
 			}
 
 			// Handle shutdown signal
@@ -57,7 +57,7 @@ func NewCommand() *cobra.Command {
 
 			p, err := client.NewProxy(serverAddr, l)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create proxy: %w", err)
 			}
 
 			s := &http.Server{Addr: clientAddr, Handler: p}
@@ -78,7 +78,7 @@ func NewCommand() *cobra.Command {
 				defer shutdownCancel()
 				return s.Shutdown(shutdownCtx)
 			case err := <-errChan:
-				return err
+				return fmt.Errorf("proxy failed: %w", err)
 			}
 		},
 	}

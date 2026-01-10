@@ -32,7 +32,7 @@ var (
 func NewCommand() *cobra.Command {
 	var clientAddr, serverAddr, contentServer, assetsDir, configFile string
 	var acceptEula, noAssetsDownload bool
-	var watchInterval time.Duration
+	var debounceInterval time.Duration
 
 	cmd := &cobra.Command{
 		Use:          "server",
@@ -57,7 +57,7 @@ func NewCommand() *cobra.Command {
 				ServiceName: "q3-server",
 			})
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to create logger: %w", err)
 			}
 
 			// Handle shutdown signal
@@ -78,7 +78,7 @@ func NewCommand() *cobra.Command {
 			go func() {
 				s := server.NewServer(
 					server.WithDir(assetsDir),
-					server.WithWatchInterval(watchInterval),
+					server.WithDebounceInterval(debounceInterval),
 					server.WithConfigFile(configFile),
 					server.WithAddr(serverAddr),
 					server.WithLogger(logger),
@@ -110,7 +110,7 @@ func NewCommand() *cobra.Command {
 	cmd.Flags().StringVar(&assetsDir, "assets-dir", "assets", "location for game files")
 	cmd.Flags().StringVar(&clientAddr, "client-addr", "0.0.0.0:8080", "client address <host>:<port>")
 	cmd.Flags().StringVar(&serverAddr, "server-addr", "0.0.0.0:27960", "dedicated server <host>:<port>")
-	cmd.Flags().DurationVar(&watchInterval, "watch-interval", 15*time.Second, "dedicated server <host>:<port>")
+	cmd.Flags().DurationVar(&debounceInterval, "debounce-interval", 2*time.Second, "debounce interval for config file changes")
 	cmd.Flags().BoolVar(&noAssetsDownload, "no-assets-download", false, "skip downloading assets from content server")
 
 	return cmd

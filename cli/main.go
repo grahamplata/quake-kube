@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/grahamplata/quake-kube/cli/cmd/content"
@@ -34,7 +36,7 @@ func main() {
 		}
 		log, err := logger.NewLogger(logger.Config{LogLevel: lvl, ServiceName: "q3"})
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create logger: %w", err)
 		}
 		logger.DefaultLogger = log
 		return nil

@@ -47,7 +47,7 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 	// WebSocket proxy setup
 	host, port, err := net.SplitHostPort(s.ServerAddr)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to split server addr: %w", err)
 	}
 	proxyTarget := s.ServerAddr
 	if net.ParseIP(host).IsUnspecified() {
@@ -56,7 +56,7 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 	}
 	wsproxy, err := NewProxy(proxyTarget, s.Logger)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create proxy: %w", err)
 	}
 
 	// WebSocket server
@@ -101,7 +101,7 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 		l.Close()
 		return shutdownErr
 	case err := <-errChan:
-		return err
+		return fmt.Errorf("server failed: %w", err)
 	}
 }
 
@@ -109,7 +109,7 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 func (s *Server) ListenAndServe(ctx context.Context) error {
 	l, err := net.Listen("tcp", s.Addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to listen: %w", err)
 	}
 	return s.Serve(ctx, l)
 }

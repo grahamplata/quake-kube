@@ -50,7 +50,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/assets/manifest.json", func(c echo.Context) error {
 		files, err := getAssets(cfg.AssetsDir)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get assets: %w", err)
 		}
 		return c.JSONPretty(http.StatusOK, files, "   ")
 	})
@@ -64,7 +64,7 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 	e.GET("/maps", func(c echo.Context) error {
 		maps, err := getMaps(cfg.AssetsDir)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get maps: %w", err)
 		}
 		return c.JSONPretty(http.StatusOK, maps, "    ")
 	})
@@ -72,18 +72,18 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		name := c.FormValue("name")
 		file, err := c.FormFile("file")
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to get file: %w", err)
 		}
 		src, err := file.Open()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to open file: %w", err)
 		}
 		defer src.Close()
 
 		if hasExts(file.Filename, ".zip") {
 			r, err := zip.NewReader(src, file.Size)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read zip: %w", err)
 			}
 			files := make([]string, 0)
 			for _, f := range r.File {
@@ -92,18 +92,18 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 				}
 				pak, err := f.Open()
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to open file: %w", err)
 				}
 				defer pak.Close()
 
 				dst, err := os.Create(filepath.Join(cfg.AssetsDir, name, filepath.Base(f.Name)))
 				if err != nil {
-					return err
+					return fmt.Errorf("failed to create file: %w", err)
 				}
 				defer dst.Close()
 
 				if _, err = io.Copy(dst, pak); err != nil {
-					return err
+					return fmt.Errorf("failed to copy file: %w", err)
 				}
 				files = append(files, filepath.Base(f.Name))
 			}
@@ -117,12 +117,12 @@ func NewRouter(cfg *Config) (*echo.Echo, error) {
 		}
 		dst, err := os.Create(filepath.Join(cfg.AssetsDir, name, file.Filename))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create file: %w", err)
 		}
 		defer dst.Close()
 
 		if _, err = io.Copy(dst, src); err != nil {
-			return err
+			return fmt.Errorf("failed to copy file: %w", err)
 		}
 		return c.HTML(http.StatusOK, fmt.Sprintf("<p>File %s uploaded successfully.</p>", filepath.Join(name, file.Filename)))
 	})

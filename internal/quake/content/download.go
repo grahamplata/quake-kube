@@ -38,14 +38,14 @@ func DownloadAssetsFromURLs(demoURL, pakURL, dir string) error {
 func downloadAndExtract(rawURL, dir string, extractor func([]byte, string) error) error {
 	u, err := url.Parse(rawURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse URL: %w", err)
 	}
 	data, err := http.GetBody(rawURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to download file: %w", err)
 	}
 	if err := saveFile(filepath.Base(u.Path), data, dir, false); err != nil {
-		return err
+		return fmt.Errorf("failed to save file: %w", err)
 	}
 	return extractor(data, dir)
 }
@@ -64,7 +64,7 @@ func extractPack(data []byte, dir string) error {
 func extractFromZip(data []byte, dir string, forceBaseQ3 bool) error {
 	r, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read zip: %w", err)
 	}
 
 	found := false
@@ -72,18 +72,18 @@ func extractFromZip(data []byte, dir string, forceBaseQ3 bool) error {
 		if strings.HasSuffix(strings.ToLower(f.Name), ".pk3") {
 			found = true
 			if err := saveFileFromReader(f, dir, forceBaseQ3); err != nil {
-				return err
+				return fmt.Errorf("failed to save file: %w", err)
 			}
 		} else if strings.HasSuffix(strings.ToLower(f.Name), ".sh") {
 			// Handle nested .sh files (some demo zips have them)
 			rc, err := f.Open()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to open file: %w", err)
 			}
 			nestedData, err := io.ReadAll(rc)
 			rc.Close()
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read file: %w", err)
 			}
 			if err := extractFromGzip(nestedData, dir, forceBaseQ3); err == nil {
 				found = true
@@ -106,7 +106,7 @@ func extractFromGzip(data []byte, dir string, forceBaseQ3 bool) error {
 	data = data[idx:]
 	gr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read gzip: %w", err)
 	}
 	defer gr.Close()
 
@@ -118,16 +118,16 @@ func extractFromGzip(data []byte, dir string, forceBaseQ3 bool) error {
 			break
 		}
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read file: %w", err)
 		}
 		if strings.HasSuffix(hdr.Name, ".pk3") {
 			found = true
 			content, err := io.ReadAll(tr)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read file: %w", err)
 			}
 			if err := saveFile(filepath.Base(hdr.Name), content, dir, forceBaseQ3); err != nil {
-				return err
+				return fmt.Errorf("failed to save file: %w", err)
 			}
 		}
 	}
@@ -141,12 +141,12 @@ func extractFromGzip(data []byte, dir string, forceBaseQ3 bool) error {
 func saveFileFromReader(f *zip.File, dir string, forceBaseQ3 bool) error {
 	rc, err := f.Open()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer rc.Close()
 	content, err := io.ReadAll(rc)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read file: %w", err)
 	}
 	return saveFile(filepath.Base(f.Name), content, dir, forceBaseQ3)
 }
@@ -160,7 +160,7 @@ func saveFile(filename string, data []byte, dir string, forceBaseQ3 bool) error 
 	}
 
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
+		return fmt.Errorf("failed to create directory: %w", err)
 	}
 	return os.WriteFile(path, data, 0644)
 }
@@ -170,7 +170,7 @@ func CopyAssets(u *url.URL, dir string) error {
 	baseURL := strings.TrimSuffix(u.String(), "/")
 	files, err := getManifest(baseURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get manifest: %w", err)
 	}
 
 	for _, f := range files {
@@ -180,13 +180,13 @@ func CopyAssets(u *url.URL, dir string) error {
 		}
 		data, err := http.GetBody(baseURL + fmt.Sprintf("/assets/%d-%s", f.Checksum, f.Name))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to download file: %w", err)
 		}
 
 		if strings.HasPrefix(f.Name, "linuxq3ademo") || strings.HasPrefix(f.Name, "linuxq3apoint") {
 			// Save the original installer file
 			if err := saveFile(f.Name, data, dir, false); err != nil {
-				return err
+				return fmt.Errorf("failed to save file: %w", err)
 			}
 			// Try both zip and gzip for these packs
 			if err := extractFromZip(data, dir, true); err != nil {
@@ -196,7 +196,7 @@ func CopyAssets(u *url.URL, dir string) error {
 			}
 		} else {
 			if err := saveFile(f.Name, data, dir, false); err != nil {
-				return err
+				return fmt.Errorf("failed to save file: %w", err)
 			}
 		}
 	}
@@ -206,7 +206,7 @@ func CopyAssets(u *url.URL, dir string) error {
 func getManifest(url string) ([]*File, error) {
 	data, err := http.GetBody(url + "/assets/manifest.json")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to download manifest: %w", err)
 	}
 
 	files := make([]*File, 0)

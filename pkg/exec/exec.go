@@ -2,6 +2,7 @@ package exec
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 )
 
@@ -14,7 +15,7 @@ type Cmd struct {
 func (cmd *Cmd) Restart(ctx context.Context) error {
 	if cmd.Process != nil {
 		if err := cmd.Process.Kill(); err != nil {
-			return err
+			return fmt.Errorf("failed to kill process: %w", err)
 		}
 	}
 

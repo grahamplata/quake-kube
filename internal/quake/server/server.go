@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"go.uber.org/zap"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -53,10 +54,10 @@ func WithAddr(addr string) Option {
 	}
 }
 
-// WithWatchInterval sets the watch interval for the server.
-func WithWatchInterval(interval time.Duration) Option {
+// WithDebounceInterval sets the debounce interval for config file changes.
+func WithDebounceInterval(interval time.Duration) Option {
 	return func(s *Server) {
-		s.WatchInterval = interval
+		s.DebounceInterval = interval
 	}
 }
 
@@ -107,21 +108,26 @@ func WithDefault() *Config {
 
 // Server represents a Quake server.
 type Server struct {
-	Dir           string
-	WatchInterval time.Duration
-	ConfigFile    string
-	Addr          string
-	Logger        *zap.Logger
-
+	// Dir is the directory where user-specific game data
+	Dir string
+	// DebounceInterval is the interval to wait after the last file change before reloading.
+	DebounceInterval time.Duration
+	// ConfigFile is the config file for the server.
+	ConfigFile string
+	// Addr is the address for the server.
+	Addr string
+	// Logger is the logger for the server.
+	Logger *zap.Logger
+	// netClient is the net client for the server.
 	netClient NetClient
 }
 
 // NewServer creates a new Server.
 func NewServer(options ...Option) *Server {
 	s := &Server{
-		WatchInterval: 15 * time.Second,
-		netClient:     &defaultNetClient{},
-		Logger:        zap.NewNop(),
+		DebounceInterval: 2 * time.Second,
+		netClient:        &defaultNetClient{},
+		Logger:           zap.NewNop(),
 	}
 
 	for _, option := range options {
@@ -137,7 +143,7 @@ func (s *Server) Start(ctx context.Context) error {
 	}
 	host, port, err := net.SplitHostPort(s.Addr)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to split host and port: %v", err)
 	}
 
 	args := []string{
@@ -157,16 +163,16 @@ func (s *Server) Start(ctx context.Context) error {
 
 	if s.ConfigFile == "" {
 		if err := s.writeDefaultConfig(); err != nil {
-			return err
+			return fmt.Errorf("failed to write default config: %v", err)
 		}
 	} else {
 		if err := s.reload(); err != nil {
-			return err
+			return fmt.Errorf("failed to reload config: %v", err)
 		}
 	}
 
 	if err := cmd.Start(); err != nil {
-		return err
+		return fmt.Errorf("failed to start: %v", err)
 	}
 
 	// Wait group or multiple goroutines for monitoring
@@ -184,11 +190,11 @@ func (s *Server) writeDefaultConfig() error {
 	cfg := WithDefault()
 	data, err := cfg.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal default config: %v", err)
 	}
 	configPath := filepath.Join(s.Dir, "baseq3", "server.cfg")
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
-		return err
+		return fmt.Errorf("failed to create directory: %v", err)
 	}
 	return os.WriteFile(configPath, data, 0644)
 }
@@ -215,7 +221,7 @@ func (s *Server) watchAndReload(ctx context.Context, cmd *exec.Cmd) error {
 			}
 			configReloads.Inc()
 			if err := cmd.Restart(ctx); err != nil {
-				return err
+				return fmt.Errorf("failed to restart server: %v", err)
 			}
 			go s.monitorProcess(cmd)
 		case <-ctx.Done():
@@ -227,58 +233,150 @@ func (s *Server) watchAndReload(ctx context.Context, cmd *exec.Cmd) error {
 func (s *Server) reload() error {
 	data, err := os.ReadFile(s.ConfigFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read config file: %v", err)
 	}
 	cfg := WithDefault()
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal config file: %v", err)
 	}
 	data, err = cfg.Marshal()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal config file: %v", err)
 	}
 	output := filepath.Join(s.Dir, "baseq3/server.cfg")
 	if err := os.MkdirAll(filepath.Dir(output), 0755); err != nil {
-		return err
+		return fmt.Errorf("failed to create directory: %v", err)
 	}
 	return os.WriteFile(output, data, 0644)
 }
 
+// watch sets up file watching with fsnotify.
+// It handles both regular files and Kubernetes ConfigMap symlinks.
 func (s *Server) watch(ctx context.Context) (<-chan struct{}, error) {
-	if s.WatchInterval == 0 {
-		s.WatchInterval = 15 * time.Second
-	}
-	fi, err := os.Stat(s.ConfigFile)
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create watcher: %w", err)
 	}
-	curModTime := fi.ModTime()
+
+	// Determine what to watch
+	watchPath, err := s.getWatchPath()
+	if err != nil {
+		watcher.Close()
+		return nil, fmt.Errorf("failed to get watch path: %v", err)
+	}
+
+	if err := watcher.Add(watchPath); err != nil {
+		watcher.Close()
+		return nil, fmt.Errorf("failed to watch %s: %w", watchPath, err)
+	}
+
+	s.Logger.Info("watching for config changes",
+		zap.String("path", watchPath),
+		zap.String("config_file", s.ConfigFile))
 
 	ch := make(chan struct{})
 
 	go func() {
-		ticker := time.NewTicker(s.WatchInterval)
-		defer ticker.Stop()
+		defer watcher.Close()
+
+		var debounceTimer *time.Timer
+		var timerCh <-chan time.Time
 
 		for {
 			select {
-			case <-ticker.C:
-				fi, err := os.Stat(s.ConfigFile)
-				if err != nil {
-					s.Logger.Warn("failed to stat config file", zap.String("file", s.ConfigFile), zap.Error(err))
+			case event, ok := <-watcher.Events:
+				if !ok {
+					return
+				}
+
+				// Check if this event is relevant to our config file
+				if !s.isRelevantEvent(event, watchPath) {
 					continue
 				}
-				if fi.ModTime().After(curModTime) {
-					curModTime = fi.ModTime()
-					select {
-					case ch <- struct{}{}:
-					default:
-					}
+
+				s.Logger.Debug("file event received",
+					zap.String("name", event.Name),
+					zap.String("op", event.Op.String()))
+
+				// Reset debounce timer
+				if debounceTimer != nil {
+					debounceTimer.Stop()
 				}
+				debounceTimer = time.NewTimer(s.DebounceInterval)
+				timerCh = debounceTimer.C
+
+			case <-timerCh:
+				// Debounce period elapsed, trigger reload
+				select {
+				case ch <- struct{}{}:
+				default:
+					// Channel blocked, skip this reload
+				}
+				timerCh = nil
+
+			case err, ok := <-watcher.Errors:
+				if !ok {
+					return
+				}
+				s.Logger.Warn("watcher error", zap.Error(err))
+
 			case <-ctx.Done():
+				if debounceTimer != nil {
+					debounceTimer.Stop()
+				}
 				return
 			}
 		}
 	}()
+
 	return ch, nil
+}
+
+// getWatchPath determines what path to watch based on whether the config file is a symlink (ConfigMap) or a regular file.
+func (s *Server) getWatchPath() (string, error) {
+	fi, err := os.Lstat(s.ConfigFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat config file: %w", err)
+	}
+
+	// If it's a symlink (typical for ConfigMaps), watch the parent directory
+	if fi.Mode()&os.ModeSymlink != 0 {
+		dir := filepath.Dir(s.ConfigFile)
+		s.Logger.Info("config file is a symlink, watching parent directory",
+			zap.String("dir", dir))
+		return dir, nil
+	}
+
+	return s.ConfigFile, nil
+}
+
+// isRelevantEvent checks if a filesystem event is relevant to our config file.
+func (s *Server) isRelevantEvent(event fsnotify.Event, watchPath string) bool {
+	// If we're watching a directory (ConfigMap case), check if the event
+	// is related to our config file or the ..data symlink that ConfigMaps use
+	if watchPath != s.ConfigFile {
+		basename := filepath.Base(s.ConfigFile)
+		eventBasename := filepath.Base(event.Name)
+
+		// ConfigMaps update by creating a new ..data_tmp, then atomically
+		// renaming it to ..data. Watch for ..data changes.
+		if eventBasename == "..data" {
+			return true
+		}
+
+		// Also watch for direct file updates
+		if eventBasename == basename {
+			return true
+		}
+
+		// Check if the event is for a new ..data_tmp being created
+		if event.Op&fsnotify.Create != 0 && eventBasename == "..data_tmp" {
+			return false // Wait for the rename
+		}
+
+		return false
+	}
+
+	// If watching the file directly, all write/create/remove events are relevant
+	return event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0
 }
