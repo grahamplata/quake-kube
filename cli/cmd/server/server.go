@@ -2,10 +2,13 @@ package server
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
@@ -39,10 +42,14 @@ func NewCommand() *cobra.Command {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
+			// Set up signal handling for graceful shutdown
+			sigChan := make(chan os.Signal, 1)
+			signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
 			// Must accept Eula to proceed
 			if !acceptEula {
 				fmt.Print(server.Q3DemoEULA)
-				return errors.New("You must agree to the EULA to continue")
+				return errors.New("you must agree to the EULA to continue")
 			}
 
 			logger, err := logger.NewLogger(logger.Config{
@@ -52,6 +59,13 @@ func NewCommand() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			// Handle shutdown signal
+			go func() {
+				sig := <-sigChan
+				logger.Info("received signal, initiating graceful shutdown", zap.String("signal", sig.String()))
+				cancel()
+			}()
 
 			// Download free ioquake3 point release files (pak1-pak8)
 			// These are freely available and don't require purchasing Quake 3
@@ -86,7 +100,7 @@ func NewCommand() *cobra.Command {
 			s := &client.Server{Addr: clientAddr, Handler: e, ServerAddr: serverAddr, Logger: logger}
 
 			logger.Info("starting server", zap.String("addr", clientAddr))
-			return s.ListenAndServe()
+			return s.ListenAndServe(ctx)
 		},
 	}
 

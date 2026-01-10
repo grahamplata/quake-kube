@@ -263,13 +263,16 @@ func (s *Server) watch(ctx context.Context) (<-chan struct{}, error) {
 		for {
 			select {
 			case <-ticker.C:
-				if fi, err := os.Stat(s.ConfigFile); err == nil {
-					if fi.ModTime().After(curModTime) {
-						curModTime = fi.ModTime()
-						select {
-						case ch <- struct{}{}:
-						default:
-						}
+				fi, err := os.Stat(s.ConfigFile)
+				if err != nil {
+					s.Logger.Warn("failed to stat config file", zap.String("file", s.ConfigFile), zap.Error(err))
+					continue
+				}
+				if fi.ModTime().After(curModTime) {
+					curModTime = fi.ModTime()
+					select {
+					case ch <- struct{}{}:
+					default:
 					}
 				}
 			case <-ctx.Done():

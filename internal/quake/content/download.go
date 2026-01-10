@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -14,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/grahamplata/quake-kube/pkg/net/http"
-	"github.com/pkg/errors"
 )
 
 // TODO: @grahamplata - This needs to be refactored into its own package
@@ -23,12 +23,12 @@ import (
 func DownloadAssetsFromURLs(demoURL, pakURL, dir string) error {
 	// Download and extract demo
 	if err := downloadAndExtract(demoURL, dir, extractPack); err != nil {
-		return errors.Wrap(err, "failed to download demo")
+		return fmt.Errorf("failed to download demo: %w", err)
 	}
 
 	// Download and extract PAK
 	if err := downloadAndExtract(pakURL, dir, extractPack); err != nil {
-		return errors.Wrap(err, "failed to download pak")
+		return fmt.Errorf("failed to download pak: %w", err)
 	}
 
 	return nil
@@ -191,7 +191,7 @@ func CopyAssets(u *url.URL, dir string) error {
 			// Try both zip and gzip for these packs
 			if err := extractFromZip(data, dir, true); err != nil {
 				if err := extractFromGzip(data, dir, true); err != nil {
-					return errors.Wrapf(err, "failed to extract pack %s", f.Name)
+					return fmt.Errorf("failed to extract pack %s: %w", f.Name, err)
 				}
 			}
 		} else {
@@ -211,7 +211,7 @@ func getManifest(url string) ([]*File, error) {
 
 	files := make([]*File, 0)
 	if err := json.Unmarshal(data, &files); err != nil {
-		return nil, errors.Wrapf(err, "cannot unmarshal %s/assets/manifest.json", url)
+		return nil, fmt.Errorf("cannot unmarshal %s/assets/manifest.json: %w", url, err)
 	}
 	return files, nil
 }

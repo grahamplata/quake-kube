@@ -6,8 +6,6 @@ import (
 	"net"
 	"strconv"
 	"time"
-
-	"github.com/pkg/errors"
 )
 
 const (
@@ -121,9 +119,16 @@ func GetStatus(addr string) (*StatusResponse, error) {
 		status := &StatusResponse{
 			Configuration: parseMap(parts[1]),
 		}
-		status.Players, _ = parsePlayers(parts[2])
+		players, err := parsePlayers(parts[2])
+		if err != nil {
+			// Log warning but continue with empty player list
+			// Player parsing can fail on malformed data but we still want config
+			status.Players = make([]Player, 0)
+		} else {
+			status.Players = players
+		}
 		return status, nil
 	default:
-		return nil, errors.Errorf("cannot parse response: %q", resp)
+		return nil, fmt.Errorf("cannot parse response: %q", resp)
 	}
 }
