@@ -1,0 +1,93 @@
+# multi-arena.yaml defines additional specialized arenas
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServer
+metadata:
+  name: arena-ctf
+  labels:
+    app.kubernetes.io/name: quake-server
+    app.kubernetes.io/instance: arena-ctf
+spec:
+  agreeEula: true
+  templateRef:
+    name: deathmatch-template
+  securityContext:
+    readOnlyRootFilesystem: false
+  serverConfig:
+    game:
+      type: CaptureTheFlag
+      motd: "Capture the Flag - Red vs Blue!"
+    server:
+      hostname: "QuakeKube CTF"
+    maps:
+      - name: q3ctf1
+        captureLimit: 8
+
+  # Gateway API configuration
+  gateway:
+    enabled: true
+    gatewayRef:
+      name: quake-gateway
+      namespace: default
+    hostname: ctf.quake.local
+
+---
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServer
+metadata:
+  name: arena-tdm
+  labels:
+    app.kubernetes.io/name: quake-server
+    app.kubernetes.io/instance: arena-tdm
+spec:
+  agreeEula: true
+  templateRef:
+    name: deathmatch-template
+  securityContext:
+    readOnlyRootFilesystem: false
+  serverConfig:
+    game:
+      type: TeamDeathmatch
+      motd: "Team Deathmatch - Stick together!"
+    server:
+      hostname: "QuakeKube TDM"
+    maps:
+      - name: q3dm7
+
+  # Gateway API configuration
+  gateway:
+    enabled: true
+    gatewayRef:
+      name: quake-gateway
+      namespace: default
+    hostname: tdm.quake.local
+
+---
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServer
+metadata:
+  name: arena-tourney
+  labels:
+    app.kubernetes.io/name: quake-server
+    app.kubernetes.io/instance: arena-tourney
+spec:
+  agreeEula: true
+  templateRef:
+    name: deathmatch-template
+  securityContext:
+    readOnlyRootFilesystem: false
+  serverConfig:
+    game:
+      type: Tournament
+      motd: "1v1 Tournament - Prove your skill!"
+    server:
+      hostname: "QuakeKube Tourney"
+    maps:
+      - name: q3tourney2
+
+  # Gateway API configuration
+  gateway:
+    enabled: true
+    gatewayRef:
+      name: quake-gateway
+      namespace: default
+    hostname: tourney.quake.local

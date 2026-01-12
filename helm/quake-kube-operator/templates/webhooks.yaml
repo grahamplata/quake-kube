@@ -1,0 +1,65 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "quake-kube-operator.fullname" . }}-mutating
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+  {{- if .Values.webhook.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "quake-kube-operator.fullname" . }}-webhook
+  {{- end }}
+webhooks:
+- name: mquakeserver.kb.io
+  admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "quake-kube-operator.webhookServiceName" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /mutate-quakekube-io-v1alpha1-quakeserver
+  failurePolicy: Fail
+  rules:
+  - apiGroups:
+    - quakekube.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - quakeservers
+  sideEffects: None
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "quake-kube-operator.fullname" . }}-validating
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+  {{- if .Values.webhook.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "quake-kube-operator.fullname" . }}-webhook
+  {{- end }}
+webhooks:
+- name: vquakeserver.kb.io
+  admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: {{ include "quake-kube-operator.webhookServiceName" . }}
+      namespace: {{ .Release.Namespace }}
+      path: /validate-quakekube-io-v1alpha1-quakeserver
+  failurePolicy: Fail
+  rules:
+  - apiGroups:
+    - quakekube.io
+    apiVersions:
+    - v1alpha1
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - quakeservers
+  sideEffects: None
+{{- end }}

@@ -1,0 +1,18 @@
+{{- if .Values.webhook.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "quake-kube-operator.webhookServiceName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 443
+    targetPort: webhook
+    protocol: TCP
+    name: https
+  selector:
+    {{- include "quake-kube-operator.selectorLabels" . | nindent 4 }}
+{{- end }}

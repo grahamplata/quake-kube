@@ -1,0 +1,107 @@
+# Default values for quake-kube-operator.
+
+# Number of operator replicas (use 2+ for HA with leader election)
+replicaCount: 1
+
+image:
+  repository: ghcr.io/grahamplata/quake-kube-operator
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - "ALL"
+
+# Resource limits and requests for the operator pod
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# Node selector for scheduling
+nodeSelector: {}
+
+# Tolerations for scheduling
+tolerations: []
+
+# Affinity rules for scheduling
+affinity: {}
+
+# Leader election configuration for HA deployments
+leaderElection:
+  # Enable leader election (recommended for production)
+  enabled: true
+  # Lease duration in seconds
+  leaseDuration: 15
+  # Renew deadline in seconds
+  renewDeadline: 10
+  # Retry period in seconds
+  retryPeriod: 2
+
+# Metrics configuration
+metrics:
+  # Enable metrics endpoint
+  enabled: true
+  # Service for metrics
+  service:
+    port: 8443
+    type: ClusterIP
+
+# Health probe configuration
+health:
+  # Health probe port
+  port: 8081
+  # Liveness probe settings
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+  # Readiness probe settings
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+# Webhook configuration
+webhook:
+  # Enable admission webhooks (requires cert-manager or manual TLS)
+  enabled: true
+  # Webhook service port
+  port: 9443
+  # Use cert-manager for TLS certificate management
+  certManager:
+    enabled: true
+    # Use self-signed issuer (for dev/test)
+    selfSigned: true
+
+# Install CRDs with the chart
+crds:
+  # Install CRDs
+  install: true
+  # Keep CRDs on chart uninstall
+  keep: true

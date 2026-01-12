@@ -1,0 +1,27 @@
+# QuakeServerTemplate provides reusable server configuration
+# Templates are cluster-scoped and can be referenced by multiple QuakeServers
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServerTemplate
+metadata:
+  name: deathmatch-template
+  labels:
+    app.kubernetes.io/name: quakeservertemplate
+    app.kubernetes.io/instance: deathmatch-template
+spec:
+  serverConfig:
+    fragLimit: 30
+    timeLimit: 20m
+    game:
+      type: FreeForAll
+      motd: "Welcome to the Quake Arena!"
+      forceRespawn: true
+    server:
+      hostname: "QuakeKube Deathmatch Server"
+      maxClients: 16
+    bot:
+      minPlayers: 4
+      skill: 3
+    maps:
+      - name: q3dm1
+      - name: q3dm7
+      - name: q3dm17

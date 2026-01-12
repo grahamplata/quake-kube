@@ -1,0 +1,38 @@
+# QuakeServer with Gateway API integration
+# Requires a Gateway to be deployed in the cluster
+apiVersion: quakekube.io/v1alpha1
+kind: QuakeServer
+metadata:
+  name: arena-gateway
+  labels:
+    app.kubernetes.io/name: quakeserver
+    app.kubernetes.io/instance: arena-gateway
+spec:
+  agreeEula: true
+
+  serverConfig:
+    fragLimit: 20
+    timeLimit: 15m
+    game:
+      type: FreeForAll
+      motd: "Gateway-enabled Arena"
+    server:
+      hostname: "QuakeKube Gateway Arena"
+      maxClients: 8
+    bot:
+      minPlayers: 2
+      skill: 2
+    maps:
+      - name: q3dm17
+
+  # Security context overrides
+  securityContext:
+    readOnlyRootFilesystem: false
+
+  # Gateway API configuration
+  gateway:
+    enabled: true
+    gatewayRef:
+      name: quake-gateway
+      namespace: default
+    hostname: quake.local

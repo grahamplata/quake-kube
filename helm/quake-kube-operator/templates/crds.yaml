@@ -1,0 +1,434 @@
+{{- if .Values.crds.install }}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: quakeservers.quakekube.io
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+    {{- if .Values.crds.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
+spec:
+  group: quakekube.io
+  names:
+    kind: QuakeServer
+    listKind: QuakeServerList
+    plural: quakeservers
+    singular: quakeserver
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - description: Server ready state
+      jsonPath: .status.ready
+      name: Ready
+      type: boolean
+    - description: Current player count
+      jsonPath: .status.players
+      name: Players
+      type: integer
+    - description: Browser endpoint
+      jsonPath: .status.endpoint
+      name: Endpoint
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: QuakeServer is the Schema for the quakeservers API
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: QuakeServerSpec defines the desired state of QuakeServer
+            properties:
+              agreeEula:
+                description: AgreeEula must be set to true to accept the Quake 3 EULA.
+                type: boolean
+              gateway:
+                description: Gateway configures the Gateway API routes for this server.
+                properties:
+                  enabled:
+                    default: true
+                    description: Enabled enables Gateway API route creation.
+                    type: boolean
+                  gatewayRef:
+                    description: GatewayRef references the Gateway to attach routes to.
+                    properties:
+                      name:
+                        description: Name is the name of the Gateway.
+                        type: string
+                      namespace:
+                        description: Namespace is the namespace of the Gateway.
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  hostname:
+                    description: Hostname is the hostname for HTTPRoute (browser WebSocket access).
+                    type: string
+                type: object
+              podSecurityContext:
+                description: PodSecurityContext specifies the security context for the server pod.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              resources:
+                description: Resources specifies the compute resources for the server container.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              securityContext:
+                description: SecurityContext specifies the security context for the server container.
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              serverConfig:
+                description: ServerConfig contains the server configuration.
+                properties:
+                  bot:
+                    description: Bot contains bot configuration.
+                    properties:
+                      minPlayers:
+                        minimum: 0
+                        type: integer
+                      noChat:
+                        type: boolean
+                      skill:
+                        default: 3
+                        maximum: 5
+                        minimum: 1
+                        type: integer
+                    type: object
+                  commands:
+                    items:
+                      type: string
+                    type: array
+                  fragLimit:
+                    default: 25
+                    minimum: 0
+                    type: integer
+                  game:
+                    properties:
+                      forceRespawn:
+                        type: boolean
+                      inactivity:
+                        type: string
+                      motd:
+                        type: string
+                      password:
+                        type: string
+                      quadFactor:
+                        default: 3
+                        minimum: 1
+                        type: integer
+                      type:
+                        default: FreeForAll
+                        enum:
+                        - FreeForAll
+                        - Tournament
+                        - SinglePlayer
+                        - TeamDeathmatch
+                        - CaptureTheFlag
+                        type: string
+                      weaponRespawn:
+                        type: integer
+                    type: object
+                  maps:
+                    items:
+                      properties:
+                        captureLimit:
+                          type: integer
+                        fragLimit:
+                          type: integer
+                        name:
+                          type: string
+                        timeLimit:
+                          type: string
+                        type:
+                          enum:
+                          - FreeForAll
+                          - Tournament
+                          - SinglePlayer
+                          - TeamDeathmatch
+                          - CaptureTheFlag
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  server:
+                    properties:
+                      hostname:
+                        type: string
+                      maxClients:
+                        default: 12
+                        maximum: 64
+                        minimum: 1
+                        type: integer
+                      rconPassword:
+                        type: string
+                    type: object
+                  timeLimit:
+                    type: string
+                type: object
+              templateRef:
+                description: TemplateRef is an optional reference to a QuakeServerTemplate.
+                properties:
+                  name:
+                    type: string
+                  namespace:
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - agreeEula
+            type: object
+          status:
+            description: QuakeServerStatus defines the observed state of QuakeServer
+            properties:
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              endpoint:
+                type: string
+              gamePort:
+                format: int32
+                type: integer
+              players:
+                type: integer
+              ready:
+                type: boolean
+              templateRef:
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: quakeservertemplates.quakekube.io
+  labels:
+    {{- include "quake-kube-operator.labels" . | nindent 4 }}
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.16.5
+    {{- if .Values.crds.keep }}
+    "helm.sh/resource-policy": keep
+    {{- end }}
+spec:
+  group: quakekube.io
+  names:
+    kind: QuakeServerTemplate
+    listKind: QuakeServerTemplateList
+    plural: quakeservertemplates
+    singular: quakeservertemplate
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - description: Default game type
+      jsonPath: .spec.serverConfig.game.type
+      name: Game Type
+      type: string
+    - description: Default max clients
+      jsonPath: .spec.serverConfig.server.maxClients
+      name: Max Clients
+      type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: QuakeServerTemplate provides reusable server configurations.
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: QuakeServerTemplateSpec defines the desired state of QuakeServerTemplate
+            properties:
+              serverConfig:
+                description: ServerConfig contains the template server configuration.
+                properties:
+                  bot:
+                    properties:
+                      minPlayers:
+                        minimum: 0
+                        type: integer
+                      noChat:
+                        type: boolean
+                      skill:
+                        default: 3
+                        maximum: 5
+                        minimum: 1
+                        type: integer
+                    type: object
+                  commands:
+                    items:
+                      type: string
+                    type: array
+                  fragLimit:
+                    default: 25
+                    minimum: 0
+                    type: integer
+                  game:
+                    properties:
+                      forceRespawn:
+                        type: boolean
+                      inactivity:
+                        type: string
+                      motd:
+                        type: string
+                      password:
+                        type: string
+                      quadFactor:
+                        default: 3
+                        minimum: 1
+                        type: integer
+                      type:
+                        default: FreeForAll
+                        enum:
+                        - FreeForAll
+                        - Tournament
+                        - SinglePlayer
+                        - TeamDeathmatch
+                        - CaptureTheFlag
+                        type: string
+                      weaponRespawn:
+                        type: integer
+                    type: object
+                  maps:
+                    items:
+                      properties:
+                        captureLimit:
+                          type: integer
+                        fragLimit:
+                          type: integer
+                        name:
+                          type: string
+                        timeLimit:
+                          type: string
+                        type:
+                          enum:
+                          - FreeForAll
+                          - Tournament
+                          - SinglePlayer
+                          - TeamDeathmatch
+                          - CaptureTheFlag
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    type: array
+                  server:
+                    properties:
+                      hostname:
+                        type: string
+                      maxClients:
+                        default: 12
+                        maximum: 64
+                        minimum: 1
+                        type: integer
+                      rconPassword:
+                        type: string
+                    type: object
+                  timeLimit:
+                    type: string
+                type: object
+            type: object
+          status:
+            description: QuakeServerTemplateStatus defines the observed state
+            properties:
+              conditions:
+                items:
+                  properties:
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              usedBy:
+                items:
+                  type: string
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+{{- end }}
