@@ -4,7 +4,6 @@ run:
   timeout: 5m
 
 linters:
-  disable-all: true
   enable:
     - dupl
     - errcheck
@@ -19,9 +18,3 @@ linters:
     - unconvert
     - unparam
     - unused
-
-issues:
-  exclude-rules:
-    - path: "internal/.*"
-      linters:
-        - dupl
