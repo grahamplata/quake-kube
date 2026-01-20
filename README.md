@@ -57,6 +57,25 @@ Access the game at `http://<NODE_IP>:30001`.
 
 For customization options, see [helm/quake-kube/values.yaml](helm/quake-kube/values.yaml).
 
+
+## QuakeKube Operator
+
+For a more robust and scalable deployment, you can use the **QuakeKube Operator**. The operator provides a declarative way to manage multiple Quake 3 servers using Kubernetes Custom Resources.
+
+**Key Features:**
+- **Declarative Management**: Define servers as `QuakeServer` resources.
+- **Reusable Templates**: Share configurations across servers using `QuakeServerTemplate`.
+- **Gateway API Support**: Native integration for exposing servers.
+- **Validation**: Webhooks ensure your configuration is correct.
+
+To install the operator via Helm:
+
+```shell
+helm install quake-operator ./helm/quake-kube-operator -n quake-system --create-namespace
+```
+
+For full documentation on the operator, including CRD examples and advanced configuration, see the [Operator README](operator/README.md).
+
 ## How it works
 
 QuakeKube makes use of [ioquake](https://www.ioquake3.org) for the Quake 3 dedicated server, and [QuakeJS](https://github.com/inolen/quakejs), a port of ioquake to javascript using [Emscripten](http://github.com/kripken/emscripten), to provide an in-browser game client.
