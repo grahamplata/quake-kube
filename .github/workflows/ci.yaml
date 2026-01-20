@@ -17,8 +17,8 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Lint
+  lint-app:
+    name: Lint App
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.24"
           cache: true
 
       - name: Run golangci-lint
@@ -34,8 +34,26 @@ jobs:
         with:
           version: latest
 
-  build:
-    name: Build
+  lint-operator:
+    name: Lint Operator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: operator
+
+  build-app:
+    name: Build App
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -43,14 +61,29 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.24"
           cache: true
 
       - name: Build binary
         run: make q3
 
-  test:
-    name: Test
+  build-operator:
+    name: Build Operator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Build binary
+        run: cd operator && make build
+
+  test-app:
+    name: Test App
     runs-on: ubuntu-latest
 
     steps:
@@ -61,20 +94,47 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: "1.24"
           cache: true
 
       - name: Run tests
         run: make test
-  
-  container:
-    name: Build Container
+
+  test-operator:
+    name: Test Operator
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
+
+      - name: Run tests
+        run: cd operator && make test
+
+  container-app:
+    name: Build App Container
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
 
       - name: Build Docker image
         run: docker build . --file Dockerfile --tag quake-kube:latest
+
+  container-operator:
+    name: Build Operator Container
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build Docker image
+        run: cd operator && docker build . --file Dockerfile --tag quake-kube-operator:latest
 
   helm-lint:
     name: Helm Lint
@@ -87,8 +147,11 @@ jobs:
         with:
           version: latest
 
-      - name: Lint Helm chart
+      - name: Lint App Helm chart
         run: helm lint helm/quake-kube
+
+      - name: Lint Operator Helm chart
+        run: helm lint helm/quake-kube-operator
 
   helm-template:
     name: Helm Template
@@ -101,5 +164,8 @@ jobs:
         with:
           version: latest
 
-      - name: Template Helm chart
+      - name: Template App Helm chart
         run: helm template quake-kube helm/quake-kube --debug
+
+      - name: Template Operator Helm chart
+        run: helm template quake-kube-operator helm/quake-kube-operator --debug
