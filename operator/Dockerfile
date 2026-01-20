@@ -1,7 +1,10 @@
 # Build the manager binary
-FROM golang:1.20 as builder
+FROM golang:1.24.0-alpine as builder
 ARG TARGETOS
 ARG TARGETARCH
+
+# Install build dependencies
+RUN apk add --no-cache git
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
