@@ -22,4 +22,28 @@ entries:
     urls:
     - https://github.com/grahamplata/quake-kube/releases/download/quake-kube-0.1.0/quake-kube-0.1.0.tgz
     version: 0.1.0
-generated: "2026-01-10T00:01:56.388099295Z"
+  quake-kube-operator:
+  - apiVersion: v2
+    appVersion: 1.2.0
+    created: "2026-01-20T01:42:50.49866226Z"
+    description: A Helm chart for the QuakeKube Operator - manages Quake 3 servers
+      on Kubernetes
+    digest: daba4582f46fa1266f23d0ae5baf1bfbcef68faa0f053830f21f5b2d33722842
+    home: https://github.com/grahamplata/quake-kube
+    keywords:
+    - quake
+    - operator
+    - kubernetes
+    - game-server
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - email: graham@grahamplata.com
+      name: Graham Plata
+    name: quake-kube-operator
+    sources:
+    - https://github.com/grahamplata/quake-kube
+    type: application
+    urls:
+    - https://github.com/grahamplata/quake-kube/releases/download/quake-kube-operator-0.1.0/quake-kube-operator-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-01-20T01:42:50.49866769Z"
